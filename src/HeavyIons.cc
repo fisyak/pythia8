@@ -1,5 +1,5 @@
 // HeavyIons.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -8,8 +8,6 @@
 
 #include "Pythia8/HeavyIons.h"
 #include "Pythia8/BeamShape.h"
-#include "Pythia8/Pythia.h"
-#include <cassert>
 
 namespace Pythia8 {
 
@@ -89,7 +87,7 @@ void HeavyIons::setupSpecials(Pythia & p, string match) {
     opts.parm(it->second.name.substr(2), it->second.valNow, true);
   map<string, Word> words = opts.getWordMap(match);
   for ( map<string, Word>::iterator it = words.begin();
-        it != words.end(); ++it )
+       it != words.end(); ++it )
     opts.word(it->second.name.substr(2), it->second.valNow, true);
   map<string, FVec> fvecs = opts.getFVecMap(match);
   for ( map<string, FVec>::iterator it = fvecs.begin();
@@ -157,11 +155,7 @@ void HeavyIons::updateInfo() {
   *infoPtr =  hiInfo.primInfo;
   infoPtr->hiInfo = &hiInfo;
   infoPtr->messages = saveMess;
-  infoPtr->updateWeight(hiInfo.weight());
-  // Also book and update weight in the weight container.
-  infoPtr->weightContainerPtr->weightsHI.bookWeight("HIweight");
-  infoPtr->weightContainerPtr->weightsHI.
-    reweightValueByName("HIweight", hiInfo.weight());
+  infoPtr->weightContainerPtr->setWeightNominal(hiInfo.weight());
   infoPtr->sigmaReset();
   double norm = 1.0/double(hiInfo.NSave);
   int Nall = 0;
@@ -278,7 +272,8 @@ bool HeavyIons::isHeavyIon(Settings & settings) {
 
 Angantyr::Angantyr(Pythia & mainPythiaIn)
   : HeavyIons(mainPythiaIn), hasSignal(true),
-    bGenPtr(0), projPtr(0), targPtr(0), collPtr(0), recoilerMode(1), bMode(0) {
+    bGenPtr(0), projPtr(0), targPtr(0), collPtr(0), recoilerMode(1), bMode(0),
+    doAbort(false) {
   selectMB = make_shared<ProcessSelectorHook>();
   selectSASD = make_shared<ProcessSelectorHook>();
   pythia.resize(ALL);
@@ -521,19 +516,11 @@ bool Angantyr::init() {
   if ( !targPtr->init() ) return false;
   if ( !bGenPtr->init() ) return false;
 
-  string output;
-  if ( hasSignal ) {
-    ostringstream oss;
-    Redirect red(cout, oss);
-    hasSignal = init(SIGPP, "signal process (pp)", 10);
-    output = oss.str();
-  }
+  if ( hasSignal ) hasSignal = init(SIGPP, "signal process (pp)", 10);
   if ( !hasSignal ) {
     if ( print ) cout << " Angantyr Info: No signal process specified. "
-                      << "Assuming minimum bias." << endl;
+                      << "Assuming minimum bias.\n";
   } else {
-      if ( print )
-        cout << output;
       if ( idTargN ) init(SIGPN, "signal process (pn)", 10);
       if ( idProjN ) init(SIGNP, "signal process (np)", 10);
       if ( idProjN && idTargN ) init(SIGNN, "signal process (nn)", 10);
@@ -601,7 +588,12 @@ EventInfo Angantyr::getMBIAS(const SubCollision * coll, int procid) {
   HoldProcess hold(selectMB, procid, bp);
   while ( --itry ) {
     if ( !pythia[MBIAS]->next() ) continue;
-    assert( pythia[MBIAS]->info.code() == procid );
+    if (pythia[MBIAS]->info.code() != procid) {
+      infoPtr->errorMsg("Internal critical error in Angantyr: "
+                          "MBIAS info code not equal to set procid.\n"
+                          "Contact the authors.");
+      doAbort = true;
+    }
     return mkEventInfo(*pythia[MBIAS], *info[MBIAS], coll);
   }
   return EventInfo();
@@ -614,7 +606,12 @@ EventInfo Angantyr::getSASD(const SubCollision * coll, int procid) {
   HoldProcess hold(selectSASD, procid, bp);
   while ( --itry ) {
     if ( !pythia[SASD]->next() ) continue;
-    assert( pythia[SASD]->info.code() == procid );
+    if (pythia[SASD]->info.code() != procid) {
+      infoPtr->errorMsg("Internal critical error in Angantyr: "
+                          "SASD info code not equal to set procid.\n"
+                          "Contact the authors.");
+      doAbort = true;
+    }
     return mkEventInfo(*pythia[SASD], *info[SASD], coll);
   }
   return EventInfo();
@@ -642,7 +639,12 @@ bool Angantyr::genAbs(const multiset<SubCollision> & coll,
       abscoll.push_back(cit);
       if ( bMode > 0 ) {
         EventInfo ie = getND(*cit);
-        assert( ie.code == 101 );
+        if (ie.code != 101) {
+          infoPtr->errorMsg("Internal critical error in Angantyr: "
+                            "ND code not equal to 101.\n"
+                            "Contact the authors.");
+          doAbort = true;
+        }
         ndeve.insert(ie);
       }
       cit->proj->select();
@@ -659,7 +661,12 @@ bool Angantyr::genAbs(const multiset<SubCollision> & coll,
   if ( bMode == 0 ) {
     for ( int i = 0; i < Nabs + Nadd; ++i ) {
       EventInfo ie = getND();
-      assert( ie.code == 101 );
+      if (ie.code != 101) {
+        infoPtr->errorMsg("Internal critical error in Angantyr: "
+                            "ND code not equal to 101.\n"
+                            "Contact the authors.");
+        doAbort = true;
+      }
       ndeve.insert(ie);
     }
   }
@@ -1197,7 +1204,7 @@ bool Angantyr::addNucleonExcitation(EventInfo & ei, EventInfo & sub,
 
   // Find the ransform to the recoilers and the diffractive combined cms
   pair<RotBstMatrix,RotBstMatrix> R12;
-  if ( !getTransforms(prec, pdiff, pbeam, R12,  ei.code, sub.code) )
+  if ( !getTransforms(prec, pdiff, pbeam, R12) )
     return false;
 
   // Transform the recoilers.
@@ -1277,12 +1284,7 @@ bool Angantyr::addNucleonExcitation(EventInfo & ei, EventInfo & sub,
 
 bool
 Angantyr::getTransforms(Vec4 prec, Vec4 pdiff, const Vec4 & pbeam,
-                      pair<RotBstMatrix,RotBstMatrix> & R12,
-                      int code1, int code2) {
-  code1 += code2;
-  // static ofstream os("testhi.out");
-  // os << "=== " << code1 << "+" << code2 << " ===" << endl;
-  // os << prec << pbeam << pdiff;
+                      pair<RotBstMatrix,RotBstMatrix> & R12) {
   RotBstMatrix Ri;
   Ri.toCMframe(pbeam, prec);
   Vec4 pr1 = prec;
@@ -1291,28 +1293,23 @@ Angantyr::getTransforms(Vec4 prec, Vec4 pdiff, const Vec4 & pbeam,
   pr1.rotbst(Ri);
   pb1.rotbst(Ri);
   pd1.rotbst(Ri);
-  // os << "=>" << endl << pr1 << pb1 << pd1;
   Vec4 pr2 = pr1;
   if ( pd1.pT() >= abs(pr2.pz()) ) {
-    // os << "*** failed to rotate ***" << endl;
     return false;
   }
   double the = asin(pd1.pT()/abs(pr2.pz()));
   RotBstMatrix R1;
   R1.rot(the, pd1.phi());
   pr2.rotbst(R1);
-  // os << "=>" << endl << pr2 << pd1;
 
   double S = (prec + pbeam).m2Calc();
   double mtr2 = pr2.pT2() + pr2.m2Calc();
   double mtd2 = pd1.pT2() + pd1.m2Calc();
   if ( sqrt(S) <= sqrt(mtr2) + sqrt(mtd2) ) {
-    // os << "*** failed to boost ***" << endl;
     return false;
   }
   double z2 = 0.25*(mtr2*mtr2 + (mtd2 - S)*(mtd2 - S) - 2.0*mtr2*(mtd2 + S))/S;
   if ( z2 <= 0.0 ) {
-    // os << "*** failed to boost ***" << endl;
     return false;
   }
   double z = sqrt(z2);
@@ -1328,14 +1325,13 @@ Angantyr::getTransforms(Vec4 prec, Vec4 pdiff, const Vec4 & pbeam,
   pr3.rotbst(R1);
   Vec4 pd3 = pd1;
   pd3.rotbst(R2);
-  // os << "=>" << endl << pr3 << pd3;
+
   RotBstMatrix Rf = Ri;
   Rf.invert();
   Vec4 pr4 = pr3;
   pr4.rotbst(Rf);
   Vec4 pd4 = pd3;
   pd4.rotbst(Rf);
-  // os << "=>" << endl << pr4 << pd4 << pr4 + pd4 << prec + pbeam;
 
   R12.first = R12.second = Ri;
   R12.first.rotbst(R1);
@@ -1344,7 +1340,6 @@ Angantyr::getTransforms(Vec4 prec, Vec4 pdiff, const Vec4 & pbeam,
   R12.second.rotbst(Rf);
   prec.rotbst(R12.first);
   pdiff.rotbst(R12.second);
-  // os << prec << pdiff;
 
   return true;
 
@@ -1440,6 +1435,10 @@ bool Angantyr::buildEvent(list<EventInfo> & subevents,
     etmp.append(targPtr->produceIon(true));
     etmp[0].p(etmp[1].p() + etmp[2].p());
     etmp[0].m(etmp[0].mCalc());
+    double bx = 0.5*FM2MM*hiInfo.b()*cos(hiInfo.phi());
+    double by = 0.5*FM2MM*hiInfo.b()*sin(hiInfo.phi());
+    etmp[1].vProd( bx,  by, 0.0, 0.0);
+    etmp[2].vProd(-bx, -by, 0.0, 0.0);
 
     // Start with the signal event(s)
     if ( hasSignal ) {
@@ -1571,7 +1570,7 @@ bool Angantyr::next() {
 
   int itry = MAXTRY;
 
-  while ( itry-- ) {
+  while ( itry-- && !doAbort) {
 
     // Generate nuclei, impact paramter and nucleon sub-collisions.
     projectile = projPtr->generate();
@@ -1581,7 +1580,7 @@ bool Angantyr::next() {
     Vec4 bvec = bGenPtr->generate(bweight);
     double T = 0.0;
     subColls = collPtr->getCollisions(projectile, target, bvec, T);
-    hiInfo.addAttempt(T, bvec.pT(), bweight);
+    hiInfo.addAttempt(T, bvec.pT(), bvec.phi(), bweight);
     hiInfo.subCollisionsPtr(&subColls);
     if ( flag("Angantyr:GlauberOnly") ) return true;
     if ( subColls.empty() ) continue;
@@ -1665,10 +1664,12 @@ bool Angantyr::next() {
     return true;
 
   }
-
-  infoPtr->errorMsg("Abort from Angantyr::next: Too many "
-    "attempts to generate a working impact parameter point. "
-    "Consider reducing HeavyIon:bWidth.");
+  if (doAbort)
+    infoPtr->errorMsg("Angantyr was aborted due to a critical error.");
+  else
+    infoPtr->errorMsg("Abort from Angantyr::next: Too many "
+      "attempts to generate a working impact parameter point. "
+      "Consider reducing HeavyIon:bWidth.");
   hiInfo.reject();
   return false;
 

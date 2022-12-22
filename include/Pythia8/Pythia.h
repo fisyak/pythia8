@@ -1,5 +1,5 @@
 // Pythia.h is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -10,8 +10,8 @@
 #define Pythia8_Pythia_H
 
 // Version number defined for use in macros and for consistency checks.
-#define PYTHIA_VERSION 8.302
-#define PYTHIA_VERSION_INTEGER 8302
+#define PYTHIA_VERSION 8.308
+#define PYTHIA_VERSION_INTEGER 8308
 
 // Header files for the Pythia class and for what else the user may need.
 #include "Pythia8/Analysis.h"
@@ -20,9 +20,11 @@
 #include "Pythia8/Event.h"
 #include "Pythia8/FragmentationFlavZpT.h"
 #include "Pythia8/HadronLevel.h"
+#include "Pythia8/HadronWidths.h"
 #include "Pythia8/Info.h"
 #include "Pythia8/JunctionSplitting.h"
 #include "Pythia8/LesHouches.h"
+#include "Pythia8/SigmaLowEnergy.h"
 #include "Pythia8/Merging.h"
 #include "Pythia8/MergingHooks.h"
 #include "Pythia8/PartonLevel.h"
@@ -58,6 +60,9 @@ namespace Pythia8 {
 // Forward declaration of the HeavyIons and HIUserHooks classes.
 class HeavyIons;
 class HIUserHooks;
+
+// Forward declaration of PythiaParallel class, to be friended.
+class PythiaParallel;
 
 // The Pythia class contains the top-level routines to generate an event.
 
@@ -186,7 +191,7 @@ public:
 
   // Possibility to access the pointer to the BeamShape object.
   BeamShapePtr getBeamShapePtr() { return beamShapePtr; }
-  
+
   // Possibility to get the pointer to the parton-shower model.
   ShowerModelPtr getShowerModelPtr() { return showerModelPtr; }
 
@@ -198,17 +203,24 @@ public:
   bool init();
 
   // Generate the next event.
-  bool next();
+  bool next() { return next(0); }
+  bool next(int procTypeIn);
 
-  // Generate the next event, either with new energies or new beam momenta.
-  bool next(double eCMin);
-  bool next(double eAin, double eBin);
-  bool next(double pxAin, double pyAin, double pzAin,
-            double pxBin, double pyBin, double pzBin);
+  // Switch to new beam particle identities; for similar hadrons only.
+  bool setBeamIDs( int idAin, int idBin = 0);
+
+  // Switch beam kinematics.
+  bool setKinematics(double eCMIn);
+  bool setKinematics(double eAIn, double eBIn);
+  bool setKinematics(double pxAIn, double pyAIn, double pzAIn,
+                     double pxBIn, double pyBIn, double pzBIn);
+  bool setKinematics(Vec4 pAIn, Vec4 pBIn);
 
   // Generate only a single timelike shower as in a decay.
   int forceTimeShower( int iBeg, int iEnd, double pTmax, int nBranchMax = 0)
-    {  partonSystems.clear(); infoPrivate.setScalup( 0, pTmax);
+    { if (!isInit) { infoPrivate.errorMsg("Error in Pythia::forceTimeShower: "
+      "Pythia is not properly initialized"); return 0; }
+      partonSystems.clear(); infoPrivate.setScalup( 0, pTmax);
     return timesDecPtr->shower( iBeg, iEnd, event, pTmax, nBranchMax); }
 
   // Generate only the hadronization/decay stage.
@@ -216,13 +228,45 @@ public:
 
   // Special routine to allow more decays if on/off switches changed.
   bool moreDecays() {return hadronLevel.moreDecays(event);}
+  bool moreDecays(int index) {return hadronLevel.decay(index, event);}
 
   // Special routine to force R-hadron decay when not done before.
   bool forceRHadronDecays() {return doRHadronDecays();}
 
   // Do a low-energy collision between two hadrons in the event record.
-  bool doLowEnergyProcess(int i1, int i2, int type) {
-    return hadronLevel.doLowEnergyProcess( i1, i2, type, event); }
+  bool doLowEnergyProcess(int i1, int i2, int procTypeIn) {
+    if (!isInit) { infoPrivate.errorMsg("Error in Pythia::doLowEnergyProcess: "
+      "Pythia is not properly initialized"); return false; }
+    return hadronLevel.doLowEnergyProcess( i1, i2, procTypeIn, event); }
+
+  // Get total cross section for two hadrons in the event record or standalone.
+  double getSigmaTotal() { return getSigmaTotal(idA, idB, eCM, 0); }
+  double getSigmaTotal(double eCM12, int mixLoHi = 0) {
+    return getSigmaTotal(idA, idB, eCM12, mixLoHi); }
+  double getSigmaTotal(int id1, int id2, double eCM12, int mixLoHi = 0) {
+    return getSigmaTotal(id1, id2, eCM12, particleData.m0(id1),
+      particleData.m0(id2), mixLoHi); }
+  double getSigmaTotal(int id1, int id2, double eCM12, double m1, double m2,
+    int mixLoHi = 0) {
+    if (!isInit) { infoPrivate.errorMsg("Error in Pythia::getSigmaTotal: "
+      "Pythia is not properly initialized"); return 0.; }
+    return sigmaCmb.sigmaTotal(id1, id2, eCM12, m1, m2, mixLoHi); }
+
+  // Get partial (elastic, diffractive, nondiffractive, ...) cross sections
+  // for two hadrons in the event record or standalone.
+  double getSigmaPartial(int procTypeIn) {
+    return getSigmaPartial(idA, idB, eCM, procTypeIn, 0); }
+  double getSigmaPartial(double eCM12, int procTypeIn, int mixLoHi = 0) {
+    return getSigmaPartial(idA, idB, eCM12, procTypeIn, mixLoHi); }
+  double getSigmaPartial(int id1, int id2, double eCM12, int procTypeIn,
+    int mixLoHi = 0) { return getSigmaPartial(id1, id2, eCM12,
+      particleData.m0(id1), particleData.m0(id2), procTypeIn, mixLoHi); }
+  double getSigmaPartial(int id1, int id2, double eCM12, double m1,
+    double m2, int procTypeIn, int mixLoHi = 0) {
+    if (!isInit) { infoPrivate.errorMsg("Error in Pythia::getSigmaPartial: "
+      "Pythia is not properly initialized"); return 0.; }
+    return sigmaCmb.sigmaPartial(id1, id2, eCM12, m1, m2, procTypeIn, mixLoHi);
+  }
 
   // List the current Les Houches event.
   void LHAeventList() { if (lhaUpPtr != 0) lhaUpPtr->listEvent();}
@@ -242,7 +286,7 @@ public:
   string word(string key) {return settings.word(key);}
 
   // Auxiliary to set parton densities among list of possibilities.
-  PDFPtr getPDFPtr(int idIn, int sequence = 1, string beam = "",
+  PDFPtr getPDFPtr(int idIn, int sequence = 1, string beam = "A",
     bool resolved = true);
 
   // The event record for the parton-level central process.
@@ -288,11 +332,17 @@ public:
   // Pointer to a HIUserHooks object to modify heavy ion modelling.
   HIUserHooksPtr hiHooksPtr = {};
 
+  // HadronWidths: the hadron widths data table/database.
+  HadronWidths    hadronWidths = {};
+
   // The two incoming beams.
   BeamParticle   beamA = {};
   BeamParticle   beamB = {};
 
 private:
+
+  // Friend PythiaParallel to give full access to underlying info.
+  friend class PythiaParallel;
 
   // The collector of all event generation weights that should eventually
   // be transferred to the final output.
@@ -311,8 +361,12 @@ private:
   void endEvent(PhysicsBase::Status status);
 
   // Register a PhysicsBase object and give it a pointer to the info object.
-  void registerPhysicsBase(PhysicsBase & pb) { pb.initInfoPtr(infoPrivate);
-    physicsPtrs.push_back(&pb); }
+  void registerPhysicsBase(PhysicsBase &pb) {
+    if (find(physicsPtrs.begin(), physicsPtrs.end(), &pb) != physicsPtrs.end())
+      return;
+    pb.initInfoPtr(infoPrivate);
+    physicsPtrs.push_back(&pb);
+  }
 
   // If new pointers are set in Info propagate this to all
   // PhysicsBase objects.
@@ -327,26 +381,32 @@ private:
   // Initialization data, extracted from database.
   string xmlPath = {};
   bool   doProcessLevel = {}, doPartonLevel = {}, doHadronLevel = {},
-         doSoftQCDall = {}, doSoftQCDinel = {}, doCentralDiff = {},
-         doDiffraction = {}, doSoftQCD = {}, doVMDsideA = {}, doVMDsideB = {},
-         doHardDiff = {}, doResDec = {}, doFSRinRes = {}, decayRHadrons = {},
-         abortIfVeto = {}, checkEvent = {}, checkHistory = {};
+         doLowEnergy = {}, doSoftQCDall = {}, doSoftQCDinel = {},
+         doCentralDiff = {}, doDiffraction = {}, doSoftQCD = {},
+         doVMDsideA = {}, doVMDsideB = {}, doHardDiff = {}, doResDec = {},
+         doFSRinRes = {}, decayRHadrons = {}, doPartonVertex = {},
+         doVertexPlane = {}, abortIfVeto = {}, checkEvent = {},
+         checkHistory = {}, doNonPert = {},
+         allowIDAswitch = {};
   int    nErrList = {};
+  vector<int> idAList = { 2212, 211, 311, 221,
+         331, 333, 411, 431, 443, 511, 531, 541, 553, 3212, 3312, 3334,
+         4112, 4312, 4332, 5112, 5312, 5332};
   double epTolErr = {}, epTolWarn = {}, mTolErr = {}, mTolWarn = {};
 
-  // Initialization data related to photon-photon interactions.
-  bool   beamHasGamma = {}, beamAisResGamma = {}, beamBisResGamma = {},
-         beamAhasResGamma = {},
-         beamBhasResGamma = {};
+  // Initialization data related to photon-photon/hadron interactions.
   int    gammaMode = {};
+  bool   beamA2gamma = {}, beamB2gamma = {};
+  bool   beamAResGamma = {}, beamBResGamma = {};
+  bool   beamAUnresGamma = {}, beamBUnresGamma = {};
 
-  // Initialization data, extracted from init(...) call.
+  // Initialization data, from init(...) call, plus some event-specific.
   bool   isConstructed = {}, isInit = {}, isUnresolvedA = {},
          isUnresolvedB = {}, showSaV = {}, showMaD = {}, doReconnect = {},
          forceHadronLevelCR = {};
   int    idA = {}, idB = {}, frameType = {}, boostType = {}, nCount = {},
          nShowLHA = {}, nShowInfo = {}, nShowProc = {}, nShowEvt = {},
-         reconnectMode = {};
+         reconnectMode = {}, iPDFAsave = {};
   double mA = {}, mB = {}, pxA = {}, pxB = {}, pyA = {}, pyB = {}, pzA = {},
          pzB = {}, eA = {}, eB = {}, pzAcm = {}, pzBcm = {}, eCM = {},
          betaZ = {}, gammaZ = {};
@@ -392,6 +452,9 @@ private:
   PDFPtr pdfVMDAPtr = {};
   PDFPtr pdfVMDBPtr = {};
 
+  // Array of PDFs to be used when idA can be changed between events.
+  vector<PDFPtr> pdfASavePtrs = {};
+
   // Alternative Pomeron beam-inside-beam.
   BeamParticle beamPomA = {};
   BeamParticle beamPomB = {};
@@ -415,12 +478,13 @@ private:
 
   // Pointer to UserHooks object for user interaction with program.
   UserHooksPtr userHooksPtr = {};
-  bool       doVetoProcess = {}, doVetoPartons = {}, retryPartonLevel = {};
+  bool doVetoProcess = {}, doVetoPartons = {},
+       retryPartonLevel = {}, canVetoHadronization = {};
 
   // Pointer to BeamShape object for beam momentum and interaction vertex.
   BeamShapePtr beamShapePtr = {};
   bool         doMomentumSpread = {}, doVertexSpread = {}, doVarEcm = {};
-  double     eMinPert = {}, eWidthPert = {};
+  double       eMinPert = {}, eWidthPert = {};
 
   // Pointers to external processes derived from the Pythia base classes.
   vector<SigmaProcess*> sigmaPtrs = {};
@@ -459,14 +523,17 @@ private:
   // The Colour reconnection class.
   ColRecPtr colourReconnectionPtr = {};
 
-  // The junction spltiting class.
+  // The junction splitting class.
   JunctionSplitting junctionSplitting = {};
 
   // The main generator class to produce the hadron level of the event.
   HadronLevel hadronLevel = {};
 
-  // The total cross section class is used both on process and parton level.
-  SigmaTotal sigmaTot = {};
+  // The total cross section classes are used both on process and parton level.
+  SigmaTotal         sigmaTot = {};
+  SigmaLowEnergy     sigmaLowEnergy;
+  NucleonExcitations nucleonExcitations = {};
+  SigmaCombined      sigmaCmb = {};
 
   // The RHadrons class is used both at PartonLevel and HadronLevel.
   RHadrons   rHadrons = {};
@@ -499,7 +566,7 @@ private:
   void nextKinematics();
 
   // Simplified treatment for low-energy nonperturbative collisions.
-  bool nextNonPert();
+  bool nextNonPert(int procTypeIn = 0);
 
   // Boost from CM frame to lab frame, or inverse. Set production vertex.
   void boostAndVertex(bool toLab, bool setVertex);

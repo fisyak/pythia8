@@ -1,10 +1,12 @@
 #include <Pythia8/Basics.h>
 #include <Pythia8/BeamParticle.h>
+#include <Pythia8/HadronWidths.h>
 #include <Pythia8/Info.h>
 #include <Pythia8/LHEF3.h>
 #include <Pythia8/ParticleData.h>
 #include <Pythia8/PartonSystems.h>
 #include <Pythia8/Settings.h>
+#include <Pythia8/SigmaLowEnergy.h>
 #include <Pythia8/SigmaTotal.h>
 #include <Pythia8/StandardModel.h>
 #include <Pythia8/SusyCouplings.h>
@@ -291,6 +293,6 @@ void bind_Pythia8_Settings(std::function< pybind11::module &(std::string const &
 		cl.def("getIsInit", (bool (Pythia8::Settings::*)()) &Pythia8::Settings::getIsInit, "C++: Pythia8::Settings::getIsInit() --> bool");
 		cl.def("readingFailed", (bool (Pythia8::Settings::*)()) &Pythia8::Settings::readingFailed, "C++: Pythia8::Settings::readingFailed() --> bool");
 		cl.def("unfinishedInput", (bool (Pythia8::Settings::*)()) &Pythia8::Settings::unfinishedInput, "C++: Pythia8::Settings::unfinishedInput() --> bool");
-		cl.def("onlySoftQCD", (bool (Pythia8::Settings::*)()) &Pythia8::Settings::onlySoftQCD, "C++: Pythia8::Settings::onlySoftQCD() --> bool");
+		cl.def("hasHardProc", (bool (Pythia8::Settings::*)()) &Pythia8::Settings::hasHardProc, "C++: Pythia8::Settings::hasHardProc() --> bool");
 	}
 }

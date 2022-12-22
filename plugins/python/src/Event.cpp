@@ -91,10 +91,11 @@ void bind_Pythia8_Event(std::function< pybind11::module &(std::string const &nam
 		cl.def_readwrite("hasVertexSave", &Pythia8::Particle::hasVertexSave);
 		cl.def_readwrite("vProdSave", &Pythia8::Particle::vProdSave);
 		cl.def_readwrite("tauSave", &Pythia8::Particle::tauSave);
+		cl.def_readwrite("pdePtr", &Pythia8::Particle::pdePtr);
 		cl.def("assign", (class Pythia8::Particle & (Pythia8::Particle::*)(const class Pythia8::Particle &)) &Pythia8::Particle::operator=, "C++: Pythia8::Particle::operator=(const class Pythia8::Particle &) --> class Pythia8::Particle &", pybind11::return_value_policy::reference, pybind11::arg("pt"));
 		cl.def("setEvtPtr", (void (Pythia8::Particle::*)(class Pythia8::Event *)) &Pythia8::Particle::setEvtPtr, "C++: Pythia8::Particle::setEvtPtr(class Pythia8::Event *) --> void", pybind11::arg("evtPtrIn"));
 		cl.def("setPDEPtr", [](Pythia8::Particle &o) -> void { return o.setPDEPtr(); }, "");
-		cl.def("setPDEPtr", (void (Pythia8::Particle::*)(class Pythia8::ParticleDataEntry *)) &Pythia8::Particle::setPDEPtr, "C++: Pythia8::Particle::setPDEPtr(class Pythia8::ParticleDataEntry *) --> void", pybind11::arg("pdePtrIn"));
+		cl.def("setPDEPtr", (void (Pythia8::Particle::*)(class std::shared_ptr<class Pythia8::ParticleDataEntry>)) &Pythia8::Particle::setPDEPtr, "C++: Pythia8::Particle::setPDEPtr(class std::shared_ptr<class Pythia8::ParticleDataEntry>) --> void", pybind11::arg("pdePtrIn"));
 		cl.def("id", (void (Pythia8::Particle::*)(int)) &Pythia8::Particle::id, "C++: Pythia8::Particle::id(int) --> void", pybind11::arg("idIn"));
 		cl.def("status", (void (Pythia8::Particle::*)(int)) &Pythia8::Particle::status, "C++: Pythia8::Particle::status(int) --> void", pybind11::arg("statusIn"));
 		cl.def("statusPos", (void (Pythia8::Particle::*)()) &Pythia8::Particle::statusPos, "C++: Pythia8::Particle::statusPos() --> void");
@@ -202,6 +203,11 @@ void bind_Pythia8_Event(std::function< pybind11::module &(std::string const &nam
 		cl.def("statusHepMC", (int (Pythia8::Particle::*)() const) &Pythia8::Particle::statusHepMC, "C++: Pythia8::Particle::statusHepMC() const --> int");
 		cl.def("isFinalPartonLevel", (bool (Pythia8::Particle::*)() const) &Pythia8::Particle::isFinalPartonLevel, "C++: Pythia8::Particle::isFinalPartonLevel() const --> bool");
 		cl.def("undoDecay", (bool (Pythia8::Particle::*)()) &Pythia8::Particle::undoDecay, "C++: Pythia8::Particle::undoDecay() --> bool");
+		cl.def("colHV", (int (Pythia8::Particle::*)() const) &Pythia8::Particle::colHV, "C++: Pythia8::Particle::colHV() const --> int");
+		cl.def("acolHV", (int (Pythia8::Particle::*)() const) &Pythia8::Particle::acolHV, "C++: Pythia8::Particle::acolHV() const --> int");
+		cl.def("colHV", (void (Pythia8::Particle::*)(int)) &Pythia8::Particle::colHV, "C++: Pythia8::Particle::colHV(int) --> void", pybind11::arg("colHVin"));
+		cl.def("acolHV", (void (Pythia8::Particle::*)(int)) &Pythia8::Particle::acolHV, "C++: Pythia8::Particle::acolHV(int) --> void", pybind11::arg("acolHVin"));
+		cl.def("colsHV", (void (Pythia8::Particle::*)(int, int)) &Pythia8::Particle::colsHV, "C++: Pythia8::Particle::colsHV(int, int) --> void", pybind11::arg("colHVin"), pybind11::arg("acolHVin"));
 		cl.def("name", (std::string (Pythia8::Particle::*)() const) &Pythia8::Particle::name, "C++: Pythia8::Particle::name() const --> std::string");
 		cl.def("nameWithStatus", [](Pythia8::Particle const &o) -> std::string { return o.nameWithStatus(); }, "");
 		cl.def("nameWithStatus", (std::string (Pythia8::Particle::*)(int) const) &Pythia8::Particle::nameWithStatus, "C++: Pythia8::Particle::nameWithStatus(int) const --> std::string", pybind11::arg("maxLen"));

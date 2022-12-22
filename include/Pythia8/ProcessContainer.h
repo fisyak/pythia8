@@ -1,5 +1,5 @@
 // ProcessContainer.h is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -50,12 +50,13 @@ public:
       isResolved(), isDiffA(), isDiffB(), isDiffC(), isQCD3body(),
       allowNegSig(), isSameSave(), increaseMaximum(), canVetoResDecay(),
       lhaStrat(), lhaStratAbs(), processCode(), useStrictLHEFscales(),
-      newSigmaMx(), nTry(), nSel(), nAcc(), nTryStat(), sigmaMx(), sigmaSgn(),
-      sigmaSum(), sigma2Sum(), sigmaNeg(), sigmaAvg(), sigmaFin(), deltaFin(),
-      weightNow(), wtAccSum(), beamAhasResGamma(), beamBhasResGamma(),
-      beamHasResGamma(), beamHasGamma(), beamAgammaMode(), beamBgammaMode(),
-      gammaModeEvent(), externalFlux(), nTryRequested(), nSelRequested(),
-      nAccRequested(), sigmaTemp(), sigma2Temp() {}
+      isAsymLHA(), betazLHA(), newSigmaMx(), nTry(), nSel(), nAcc(),
+      nTryStat(), sigmaMx(), sigmaSgn(), sigmaSum(), sigma2Sum(), sigmaNeg(),
+      sigmaAvg(), sigmaFin(), deltaFin(), weightNow(), wtAccSum(),
+      beamAhasResGamma(), beamBhasResGamma(), beamHasResGamma(),
+      beamHasGamma(), beamAgammaMode(), beamBgammaMode(), gammaModeEvent(),
+      approximatedGammaFlux(), nTryRequested(), nSelRequested(),
+      nAccRequested(), sigmaTemp(), sigma2Temp(), normVar3() {}
 
   // Destructor. Do not destroy external sigmaProcessPtr.
   ~ProcessContainer() {delete phaseSpacePtr;
@@ -76,6 +77,9 @@ public:
     if (particleDataPtrIn != 0) particleDataPtr = particleDataPtrIn;
     if (sigmaProcessPtr != 0) sigmaProcessPtr->setLHAPtr(lhaUpPtr);
     if (phaseSpacePtr != 0) phaseSpacePtr->setLHAPtr(lhaUpPtr);}
+
+  // Switch to new beam particle identities; for similar hadrons only.
+  void updateBeamIDs() {phaseSpacePtr->updateBeamIDs();}
 
   // Update the CM energy of the event.
   void newECM(double eCM) {phaseSpacePtr->newECM(eCM);}
@@ -127,6 +131,10 @@ public:
     { if (nTry > nTryStat && doAccumulate) sigmaDelta(); return sigmaFin;}
   double deltaMC(    bool doAccumulate = true)
     { if (nTry > nTryStat && doAccumulate) sigmaDelta(); return deltaFin;}
+
+  // New value for switched beam identity or energy (for SoftQCD processes).
+  double sigmaMaxSwitch() {sigmaMx = phaseSpacePtr->sigmaMaxSwitch();
+    return sigmaMx;}
 
   // Some kinematics quantities.
   int    id1()         const {return sigmaProcessPtr->id(1);}
@@ -184,6 +192,10 @@ private:
   int    lhaStrat, lhaStratAbs, processCode;
   bool   useStrictLHEFscales;
 
+  // Boost Les Houches events to CM frame (when originally asymmetric).
+  bool   isAsymLHA;
+  double betazLHA;
+
   // Statistics on generation process. (Long integers just in case.)
   bool   newSigmaMx;
   long   nTry, nSel, nAcc, nTryStat;
@@ -194,8 +206,8 @@ private:
   bool   beamAhasResGamma, beamBhasResGamma, beamHasResGamma, beamHasGamma;
   int    beamAgammaMode, beamBgammaMode, gammaModeEvent;
 
-  // Use external photon flux.
-  bool   externalFlux;
+  // Use approximated photon flux for process sampling.
+  bool   approximatedGammaFlux;
 
   // Statistics for Les Houches event classification.
   vector<int> codeLHA;
@@ -205,7 +217,7 @@ private:
   long nTryRequested, nSelRequested, nAccRequested;
 
   // Temporary summand for handling (weighted) events when vetoes are applied.
-  double sigmaTemp, sigma2Temp;
+  double sigmaTemp, sigma2Temp, normVar3;
 
   // Estimate integrated cross section and its uncertainty.
   void sigmaDelta();

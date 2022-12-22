@@ -517,6 +517,53 @@ In such cases the old hadron-hadron values can be found here, while
 provide the new Pomeron-hadron ones. 
 </methodmore> 
  
+<h3>Cross sections</h3> 
+ 
+Here are the currently available methods related to the event sample 
+as a whole, for the default value <code>i = 0</code>, and otherwise for 
+the specific process code provided as argument. This is the number 
+obtained with <code>Info::code()</code>, while the further subdivision 
+given by <code>Info::codeSub()</code> is not bookkept. While continuously 
+updated during the run, it is recommended only to study these properties 
+at the end of the event generation, when the full statistics is available. 
+The individual process results are not available if a 
+<aloc href="SecondHardProcess">second hard process</aloc> has been 
+chosen, but can be gleaned from the <code>pythia.stat()</code> output. 
+ 
+<method name="vector&lt;int&gt; Info::codesHard()"> 
+returns a vector with all the process codes set up for the current run, 
+i.e. the valid nonzero arguments for the five methods below. 
+</method> 
+ 
+<method name="string Info::nameProc(int i = 0)"> 
+returns the process name for process code <code>i</code>. 
+</method> 
+ 
+<method name="long Info::nTried(int i = 0)"> 
+</method> 
+<methodmore name="long Info::nSelected(int i = 0)"> 
+</methodmore> 
+<methodmore name="long Info::nAccepted(int i = 0)"> 
+the total number of tried phase-space points, selected hard processes 
+and finally accepted events, summed over all allowed processes 
+(<code>i = 0</code>) or for the given process. 
+The first number is only intended for a study of the phase-space selection 
+efficiency. The last two numbers usually only disagree if the user introduces 
+some veto during the event-generation process; then the former is the number 
+of acceptable events found by PYTHIA and the latter the number that also 
+were approved by the user. If you set a <aloc href="SecondHardProcess"> 
+second hard process</aloc> there may also be a mismatch. 
+</methodmore> 
+ 
+<method name="double Info::sigmaGen(int i = 0)"> 
+</method> 
+<methodmore name="double Info::sigmaErr(int i = 0)"> 
+the estimated cross section and its estimated error, 
+summed over all allowed processes (<code>i = 0</code>) or for the given 
+process, in units of mb. The numbers refer to the accepted event sample 
+above, i.e. after any user veto. 
+</methodmore> 
+ 
 <h3>Loop counters</h3> 
  
 Mainly for internal/debug purposes, a number of loop counters from 
@@ -690,6 +737,130 @@ For the documentation of the necessary <code>Info</code> class
 retrieval functions, please consult the 
 <aloc href="LHEF">Les Houches Event Files </aloc> section. 
  
+<h3>Heavy Ion Information</h3> 
+ 
+When generating collisions involving <aloc href="HeavyIons">heavy 
+ions</aloc>, the <code>Info</code> object will contain a non-null 
+pointer <code>Info::hiInfo</code> to a special <code>HIInfo</code> 
+object. The information stored there is typically related to the 
+Glauber modelling of the nucleons in a nuclei. 
+ 
+<method name="double HIInfo::b()"> 
+the impact parameter in femtometers. 
+</method> 
+ 
+<method name="double HIInfo::phi()"> 
+the impact parameter angle. 
+</method> 
+ 
+<method name="double HIInfo::sigmaTot()"> 
+the total cross section from the Glauber calculation in millibarns. 
+</method> 
+ 
+<method name="double HIInfo::sigmaTotErr()"> 
+the error in the total cross section. 
+</method> 
+ 
+<method name="double HIInfo::sigmaND()"> 
+the inelastic non-diffractive  cross section from the Glauber calculation 
+in millibarns. 
+</method> 
+ 
+<method name="double HIInfo::sigmaNDErr()"> 
+the error in the inelastic non-diffractive cross section. 
+</method> 
+ 
+<method name="long nAttempts()"> 
+the number of attempted impact parameter points. 
+</method> 
+ 
+<method name="long nAccepted()"> 
+the number of accepted impact parameter points (resulting in actual events). 
+</method> 
+ 
+<method name="int nCollTot()"> 
+the number of separate sub-collisions in the current event. 
+</method> 
+ 
+<method name="int nCollND()"> 
+the number of separate fully non-diffractive sub-collisions in the 
+current event. 
+</method> 
+ 
+<method name="int nCollNDTot()"> 
+the total number of non-diffractive NN-collisions in the current 
+event. 
+</method> 
+ 
+<method name="int nCollSDP()"> 
+the number of separate single diffractive projectile nucleon excitation 
+sub-collisions in the current event. 
+</method> 
+ 
+<method name="int nCollSDT()"> 
+the number of separate single diffractive target nucleon excitation 
+sub-collisions in the current event. 
+</method> 
+ 
+<method name="int nCollDD()"> 
+the number of separate double diffractive excitation sub-collisions in 
+the current event. 
+</method> 
+ 
+<method name="int nCollCD()"> 
+the number of separate central diffractive excitation sub-collisions in 
+the current event. 
+</method> 
+ 
+<method name="int nCollEL()"> 
+the number of separate elastic sub-collisions in 
+the current event. 
+</method> 
+ 
+<method name="int nPartProj()"> 
+number of interacting projectile nucleons in the current event. 
+</method> 
+ 
+<method name="int nAbsProj()"> 
+number of absorptively wounded projectile nucleons in the current event. 
+</method> 
+ 
+<method name="int nDiffProj()"> 
+number of diffrectively wounded projectile nucleons in the current event. 
+</method> 
+ 
+<method name="int nELProj()"> 
+number of elastically scattered projectile nucleons in the current event. 
+</method> 
+ 
+<method name="int nPartTarg()"> 
+number of interacting target nucleons in the current event. 
+</method> 
+ 
+<method name="int nAbsTarg()"> 
+number of absorptively wounded target nucleons in the current event. 
+</method> 
+ 
+<method name="int nDiffTarg()"> 
+number of diffrectively wounded target nucleons in the current event. 
+</method> 
+ 
+<method name="int nELTarg()"> 
+number of elastically scattered target nucleons in the current event. 
+</method> 
+ 
+<method name="int nFail()"> 
+number of failed nucleon excitations in the current event. 
+</method> 
+ 
+<method name="weight()"> 
+the weight of the current event. 
+</method> 
+ 
+<method name="weightSum()"> 
+the sum of weights of the events generated so far. 
+</method> 
+ 
 </chapter> 
  
-<!-- Copyright (C) 2020 Torbjorn Sjostrand --> 
+<!-- Copyright (C) 2022 Torbjorn Sjostrand --> 

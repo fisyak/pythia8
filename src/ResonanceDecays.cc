@@ -1,5 +1,5 @@
 // ResonanceDecays.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -68,10 +68,10 @@ bool ResonanceDecays::next( Event& process, int iDecNow) {
 
       // Prepare decay selection.
       if (!decayer.particleDataEntry().preparePick(id0, m0, idIn)) {
-        ostringstream osWarn;
-        osWarn << "for id = " << id0;
+        ostringstream extra;
+        extra << "for id = " << id0;
         infoPtr->errorMsg("Error in ResonanceDecays::next:"
-          " no open decay channel", osWarn.str());
+          " no open decay channel", extra.str());
         return false;
       }
 
@@ -101,10 +101,8 @@ bool ResonanceDecays::next( Event& process, int iDecNow) {
 
       // Failed to find acceptable decays.
       if (!foundChannel) {
-        ostringstream osWarn;
-        osWarn << "for id = " << id0;
-        infoPtr->errorMsg("Error in ResonanceDecays::next:"
-          " failed to find workable decay channel", osWarn.str());
+        infoPtr->errorMsg("Error in ResonanceDecays::next: failed to find "
+          "workable decay channel", "for id = " + to_string(id0));
         return false;
       }
 
@@ -340,6 +338,7 @@ bool ResonanceDecays::pickMasses() {
   double psMax    = sqrtpos( pow2(1. - mr1 - mr2) - 4. * mr1 * mr2 );
   double wtMax   = 1.;
   if      (psMode == 1) wtMax = psMax;
+  else if (psMode == 2) wtMax = pow2(psMax);
   else if (psMode == 3) wtMax = pow3(psMax);
   else if (psMode == 5) wtMax = psMax
     * (pow2(1. - mr1 - mr2) + 8. * mr1 * mr2);
@@ -377,6 +376,7 @@ bool ResonanceDecays::pickMasses() {
       ps   = sqrtpos( pow2(1. - mr1 - mr2) - 4. * mr1 * mr2 );
       wt   = 1.;
       if      (psMode == 1) wt = ps;
+      else if (psMode == 2) wt = pow2(ps);
       else if (psMode == 3) wt = pow3(ps);
       else if (psMode == 5) wt = ps
         * (pow2(1. - mr1 - mr2) + 8. * mr1 * mr2);

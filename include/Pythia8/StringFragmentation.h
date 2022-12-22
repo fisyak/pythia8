@@ -1,5 +1,5 @@
 // StringFragmentation.h is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -57,7 +57,7 @@ public:
     double xNegIn, int colIn);
 
   // Fragment off one hadron from the string system, in flavour and pT.
-  void newHadron(double nNSP = 0.0);
+  void newHadron(double nNSP = 0.0, bool forbidPopcornNow = false);
 
   // Fragment off one hadron from the string system, in momentum space,
   // by taking steps either from positive or from negative end.
@@ -111,9 +111,9 @@ public:
     closePacking(), setVertices(), constantTau(), smearOn(),
     traceColours(false), hadronVertex(), stopMass(), stopNewFlav(),
     stopSmear(), eNormJunction(), eBothLeftJunction(), eMaxLeftJunction(),
-    eMinLeftJunction(), mJoin(), bLund(), pT20(), xySmear(), kappaVtx(),
-    mc(), mb(), hasJunction(), isClosed(), iPos(), iNeg(), w2Rem(),
-    stopMassNow(), idDiquark(), legMin(), legMid() {}
+    eMinLeftJunction(), mJoin(), bLund(), pT20(), xySmear(), maxSmear(),
+    maxTau(), kappaVtx(), mc(), mb(), hasJunction(), isClosed(), iPos(),
+    iNeg(), w2Rem(), stopMassNow(), idDiquark(), legMin(), legMid() {}
 
   // Initialize and save pointers.
   void init(StringFlav* flavSelPtrIn, StringPT* pTSelPtrIn, StringZ* zSelPtrIn,
@@ -129,7 +129,7 @@ private:
 
   // Constants: could only be changed in the code itself.
   static const int    NTRYFLAV, NTRYJOIN, NSTOPMASS, NTRYJNREST,
-                      NTRYJNMATCH, NTRYJRFEQ;
+                      NTRYJNMATCH, NTRYJRFEQ, NTRYSMEAR;
   static const double FACSTOPMASS, CLOSEDM2MAX, CLOSEDM2FRAC, EXPMAX,
                       MATCHPOSNEG, EJNWEIGHTMAX, CONVJNREST, M2MAXJRF,
                       M2MINJRF, EEXTRAJNMATCH, MDIQUARKMIN, CONVJRFEQ,
@@ -145,11 +145,12 @@ private:
 
   // Initialization data, read from Settings.
   bool   closePacking, setVertices, constantTau, smearOn,
-         traceColours;
+         traceColours,  hardRemn;
   int    hadronVertex;
   double stopMass, stopNewFlav, stopSmear, eNormJunction,
          eBothLeftJunction, eMaxLeftJunction, eMinLeftJunction,
-         mJoin, bLund, pT20, xySmear, kappaVtx, mc, mb;
+         mJoin, bLund, pT20, xySmear, maxSmear, maxTau, kappaVtx, mc, mb,
+         dampPopcorn, aRemn, bRemn;
 
   // Data members.
   bool   hasJunction, isClosed;
@@ -199,7 +200,7 @@ private:
   Vec4 pPosFinalReg, pNegFinalReg, eXFinalReg, eYFinalReg;
 
   // Set hadron production points in space-time picture.
-  void setHadronVertices(Event& event);
+  bool setHadronVertices(Event& event);
 
   // Construct a special joining region for the final two hadrons.
   StringRegion finalRegion();

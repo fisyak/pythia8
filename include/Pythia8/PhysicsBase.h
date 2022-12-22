@@ -1,5 +1,5 @@
 // PhysicsBase.h is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -33,7 +33,7 @@ public:
     INIT_FAILED, LHEF_END, LOWENERGY_FAILED, PROCESSLEVEL_FAILED,
     PROCESSLEVEL_USERVETO, MERGING_FAILED, PARTONLEVEL_FAILED,
     PARTONLEVEL_USERVETO, HADRONLEVEL_FAILED, CHECK_FAILED,
-    OTHER_UNPHYSICAL, HEAVYION_FAILED };
+    OTHER_UNPHYSICAL, HEAVYION_FAILED, HADRONLEVEL_USERVETO };
 
   // This function is called from above for physics objects used in a run.
   void initInfoPtr(Info& infoPtrIn);
@@ -79,7 +79,10 @@ protected:
   // Pointer to the particle data table.
   ParticleData*  particleDataPtr  = {};
 
- // Pointer to the random number generator.
+  // Pointer to the hadron widths data table
+  HadronWidths*  hadronWidthsPtr  = {};
+
+  // Pointer to the random number generator.
   Rndm*          rndmPtr          = {};
 
   // Pointers to SM and SUSY couplings.
@@ -100,8 +103,9 @@ protected:
   // Pointer to information on subcollision parton locations.
   PartonSystems* partonSystemsPtr = {};
 
-  // Pointer to the total/elastic/diffractive cross sections.
+  // Pointers to the total/elastic/diffractive cross sections.
   SigmaTotal*    sigmaTotPtr      = {};
+  SigmaCombined* sigmaCmbPtr      = {};
 
   // A set of sub objects that should have their information in sync
   // with This.

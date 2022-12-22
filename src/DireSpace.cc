@@ -1,5 +1,5 @@
 // DireSpace.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Stefan Prestel, Torbjorn Sjostrand.
+// Copyright (C) 2022 Stefan Prestel, Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -342,8 +342,7 @@ bool DireSpace::limitPTmax( Event& event, double, double) {
   bool dopTlimit = false;
   dopTlimit1 = dopTlimit2 = false;
   int nHeavyCol = 0;
-  if      (pTmaxMatch == 1) dopTlimit = dopTlimit1 = dopTlimit2 = true;
-  else if (pTmaxMatch == 2) dopTlimit = dopTlimit1 = dopTlimit2 = false;
+  if (pTmaxMatch == 1) dopTlimit = dopTlimit1 = dopTlimit2 = true;
 
   // Always restrict SoftQCD processes.
   else if (infoPtr->isNonDiffractive() || infoPtr->isDiffractiveA()
@@ -2669,7 +2668,6 @@ bool DireSpace::pT2nextQCD_II( double pT2begDip, double pT2sel,
 
   // Variables used inside evolution loop. (Mainly dummy starting values.)
   int    nFlavour       = 3;
-  double Lambda2        = Lambda3flav2;
   int    idMother       = 0;
   int    idSister       = 0;
   double znow           = 0.;
@@ -2780,19 +2778,11 @@ bool DireSpace::pT2nextQCD_II( double pT2begDip, double pT2sel,
       kernelPDF = 0.;
 
       // Determine overestimated z range; switch at c and b masses.
-      if (tnow > m2b) {
-        nFlavour  = 5;
-        Lambda2   = Lambda5flav2;
-      } else if (tnow > m2c) {
-        nFlavour  = 4;
-        Lambda2   = Lambda4flav2;
-      } else {
-        nFlavour  = 3;
-        Lambda2   = Lambda3flav2;
-      }
+      if (tnow > m2b) nFlavour  = 5;
+      else if (tnow > m2c) nFlavour  = 4;
+      else nFlavour  = 3;
 
       // A change of renormalization scale expressed by a change of Lambda.
-      Lambda2    /= renormMultFac;
       zMinAbs     = (hasPDFdau) ? xDaughter : 0.;
       zMaxAbs     = 1.;
 
@@ -3005,6 +2995,7 @@ bool DireSpace::pT2nextQCD_II( double pT2begDip, double pT2sel,
     // More last resort.
     if (hasPDFdau && idDaughter == 21 && pdfScale2 == pT2min && pdfRatio>50.)
       pdfRatio = 0.;
+    if (isinf(pdfRatio) || isnan(pdfRatio)) pdfRatio = 0.;
 
     fullWeightNow  *= pdfRatio*jacobian;
 
@@ -3211,7 +3202,6 @@ bool DireSpace::pT2nextQCD_IF( double pT2begDip, double pT2sel,
 
   // Variables used inside evolution loop. (Mainly dummy starting values.)
   int    nFlavour       = 3;
-  double Lambda2        = Lambda3flav2;
   int    idMother       = 0;
   int    idSister       = 0;
   double znow           = 0.;
@@ -3316,19 +3306,11 @@ bool DireSpace::pT2nextQCD_IF( double pT2begDip, double pT2sel,
       kernelPDF = 0.;
 
       // Determine overestimated z range; switch at c and b masses.
-      if (tnow > m2b) {
-        nFlavour  = 5;
-        Lambda2   = Lambda5flav2;
-      } else if (tnow > m2c) {
-        nFlavour  = 4;
-        Lambda2   = Lambda4flav2;
-      } else {
-        nFlavour  = 3;
-        Lambda2   = Lambda3flav2;
-      }
+      if (tnow > m2b) nFlavour  = 5;
+      else if (tnow > m2c) nFlavour  = 4;
+      else nFlavour  = 3;
 
       // A change of renormalization scale expressed by a change of Lambda.
-      Lambda2    /= renormMultFac;
       zMinAbs     = (hasPDFdau) ? xDaughter : 0.;
       zMaxAbs     = 1.;
 
@@ -3625,6 +3607,7 @@ bool DireSpace::pT2nextQCD_IF( double pT2begDip, double pT2sel,
 
     // More last resort.
     if (idDaughter == 21 && pdfScale2 < 1.01 && pdfRatio > 50.) pdfRatio = 0.;
+    if (std::isinf(pdfRatio) || std::isnan(pdfRatio)) pdfRatio = 0.;
 
     fullWeightNow  *= pdfRatio;
     for ( unordered_map<string,double>::iterator it = fullWeightsNow.begin();
@@ -4131,8 +4114,6 @@ bool DireSpace::branch_II( Event& event, bool trial,
     // transferred to sister "1" color.
     if (idMother*idDaughterNow > 0 && idMother > 0) {
       colMother1  = colDaughter;
-      acolMother1 = 0;
-      acolSister1 = 0;
       colSister1  = acolSister;
     }
     // Daughter anticolor transferred to antiquark mother "1", sister color
@@ -4462,9 +4443,6 @@ bool DireSpace::branch_II( Event& event, bool trial,
                      && partonSystemsPtr->getSystemOf(iRecoiler,true) == 0;
     if (isHardSystem && physical && doMEcorrections
       && pT2 > pT2minMECs && checkSIJ(event,Q2minMECs)) {
-
-#ifdef MG5MES
-
       int iA      = getInA(iSysSelNow);
       int iB      = getInB(iSysSelNow);
       vector<int> iOut(createvector<int>(0)(0));
@@ -4492,13 +4470,6 @@ bool DireSpace::branch_II( Event& event, bool trial,
       for (int iCopy = 2; iCopy < systemSizeOld; ++iCopy)
         partonSystemsPtr->setOut(iSysSelNow, iCopy - 2, iOut[iCopy]);
       partonSystemsPtr->popBackOut(iSysSelNow);
-
-#else
-
-      doMECreject = false;
-
-#endif
-
     }
 
     // Update dipoles and beams. Note: dipEndSel no longer valid after this.
@@ -5217,8 +5188,6 @@ bool DireSpace::branch_IF( Event& event, bool trial,
     // transferred to sister "1" color.
     if (idMother*idDaughterNow > 0 && idMother > 0) {
       colMother1  = colDaughter;
-      acolMother1 = 0;
-      acolSister1 = 0;
       colSister1  = acolSister;
     }
     // Daughter anticolor transferred to antiquark mother "1", sister color
@@ -5656,8 +5625,6 @@ bool DireSpace::branch_IF( Event& event, bool trial,
     if (isHardSystem && physical && doMEcorrections
       && pT2 > pT2minMECs && checkSIJ(event,Q2minMECs)) {
 
-#ifdef MG5MES
-
       int iA      = getInA(iSysSelNow);
       int iB      = getInB(iSysSelNow);
       // Update and add newly produced particles.
@@ -5706,13 +5673,6 @@ bool DireSpace::branch_IF( Event& event, bool trial,
         partonSystemsPtr->replace(iSysSelNow, iNewRecoiler, iRecoiler);
         partonSystemsPtr->popBackOut(iSysSelNow);
       }
-
-#else
-
-      doMECreject = false;
-
-#endif
-
     }
 
     // Update dipoles and beams. Note: dipEndSel no longer valid after this.
@@ -7286,7 +7246,7 @@ double DireSpace::getSplittingProb( const Event& state, int iRad,
 
   // Disallow below cut-off.
   if ( pT2cut(state[iEmt].id()) > pT2) return 0.;
-  if ( !splits[name]->aboveCutoff( pT2, state[iRad], state[iRec], 0,
+  if ( !splits[name]->aboveCutoff( pT2, state[iRad], state[iRecAft], 0,
         partonSystemsPtr)) return 0.;
 
   // Upate type if this is a massive splitting.

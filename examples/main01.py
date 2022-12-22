@@ -1,5 +1,5 @@
 # main01.py is a part of the PYTHIA event generator.
-# Copyright (C) 2020 Torbjorn Sjostrand.
+# Copyright (C) 2022 Torbjorn Sjostrand.
 # PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 # Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -24,7 +24,6 @@ sys.path.insert(0, lib)
 # Import the Pythia module.
 import pythia8
 pythia = pythia8.Pythia()
-print pythia.settings.fvec("Charmonium:gg2ccbar(3S1)[3S1(8)]g")
 pythia.readString("Beams:eCM = 8000.")
 pythia.readString("HardQCD:all = on")
 pythia.readString("PhaseSpace:pTHatMin = 20.")

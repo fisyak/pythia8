@@ -1,5 +1,5 @@
 // FragmentationSystems.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -204,7 +204,8 @@ bool ColConfig::insert( vector<int>& iPartonIn, Event& event) {
 // Insert a new qqbar colour singlet system in ascending mass order.
 // Simple version for at most two triplet-antitriplet systems.
 
-bool ColConfig::simpleInsert( vector<int>& iPartonIn, Event& event) {
+bool ColConfig::simpleInsert( vector<int>& iPartonIn, Event& event,
+  bool fixOrder) {
 
   // Find momentum and invariant mass of system, minus endpoint masses.
   Vec4 pSumIn   = event[ iPartonIn[0] ].p() + event[ iPartonIn[1] ].p();
@@ -218,8 +219,8 @@ bool ColConfig::simpleInsert( vector<int>& iPartonIn, Event& event) {
     massExcessIn, false, false) );
 
   // If necessary flip so that smallest mass excesses come first.
-  if (singlets.size() == 2 && massExcessIn < singlets[0].massExcess)
-    swap( singlets[0], singlets[1]);
+  if (!fixOrder && singlets.size() == 2 && massExcessIn
+    < singlets[0].massExcess) swap( singlets[0], singlets[1]);
 
   // Done.
   return true;
@@ -276,8 +277,8 @@ bool ColConfig::joinJunction( vector<int>& iPartonIn, Event& event,
 
   // Nothing to do if no two legs have small invariant mass, and
   // system as a whole is above MiniStringFragmentation threshold.
-  if (legA == -1 || (mMin > mJoinJunction && massExcessIn > mStringMin))
-    return false;
+  if (legA == -1 || legB == -1 || (mMin > mJoinJunction
+    && massExcessIn > mStringMin)) return false;
 
   // Construct separate index arrays for the three legs.
   vector<int> iLegA, iLegB, iLegC;

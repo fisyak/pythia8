@@ -1,5 +1,5 @@
 // ParticleDecays.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -7,6 +7,7 @@
 // ParticleDecays class.
 
 #include "Pythia8/ParticleDecays.h"
+#include "Pythia8/HadronWidths.h"
 
 namespace Pythia8 {
 
@@ -129,6 +130,15 @@ bool ParticleDecays::decay( int iDec, Event& event) {
     return true;
   }
 
+  // Check for zero-mass particles.
+  if (decayer.m() <= 0.0) {
+    stringstream ss;
+    ss << "with ID = " << decayer.id();
+    infoPtr->errorMsg("Warning in ParticleDecays::decay: "
+      "cannot decay zero-mass particle", ss.str());
+    return true;
+  }
+
   // Fill the decaying particle in slot 0 of arrays.
   idDec = decayer.id();
   iProd.resize(0);
@@ -182,6 +192,36 @@ bool ParticleDecays::decay( int iDec, Event& event) {
   if (decayer.idAbs() == 15 && !doneExternally && tauMode) {
     doneExternally = tauDecayer.decay(iDec, event);
     if (doneExternally) return true;
+  }
+
+  // Perform decay using mass dependent widths if possible.
+  if (!doneExternally && decDataPtr->varWidth()
+      && (idDec != 113 && abs(idDec) != 213 && idDec != 225)) {
+    double mDec = decayer.m();
+    int id1, id2;
+    double m1, m2;
+    if (hadronWidthsPtr->pickDecay(idDec, mDec, id1, id2, m1, m2)) {
+
+      // Calculate four-momenta and boost to lab frame.
+      auto ps = rndmPtr->phaseSpace2(mDec, m1, m2);
+      ps.first.bst( decayer.p(), decayer.m() );
+      ps.second.bst(decayer.p(), decayer.m() );
+
+      // Insert new particles into event record.
+      mult = 2;
+      int statOut = ( decayer.statusAbs() == 157
+                  ||  decayer.statusAbs() == 159 ) ? 97 : 91;
+      iProd.resize(3);
+      iProd[1] = event.append(id1, statOut, iDec,0, 0,0, 0,0, ps.first , m1);
+      iProd[2] = event.append(id2, statOut, iDec,0, 0,0, 0,0, ps.second, m2);
+
+      // Mark original particle as decayed and set daughters.
+      event[iDec].statusNeg();
+      event[iDec].daughters(iProd[1], iProd[2]);
+
+      // Mark as done externally.
+      doneExternally = true;
+    }
   }
 
   // Now begin normal internal decay treatment.
@@ -288,8 +328,8 @@ bool ParticleDecays::decay( int iDec, Event& event) {
     // Else remove unused daughters and return failure.
     } else {
       if (hasStored) event.popBack(mult);
-      infoPtr->errorMsg("Error in ParticleDecays::decay: "
-        "failed to find workable decay channel");
+      infoPtr->errorMsg("Error in ParticleDecays::decay: failed to find "
+        "workable decay channel", "for id = " + to_string(idDec));
       return false;
     }
 
@@ -313,6 +353,8 @@ bool ParticleDecays::decay( int iDec, Event& event) {
     }
   }
 
+  bool checkForHadronization = false;
+
   // In a decay explicitly to partons then optionally do a shower,
   // and always flag that partonic system should be fragmented.
   if (hasPartons && keepPartons && doFSRinDecays)
@@ -320,20 +362,50 @@ bool ParticleDecays::decay( int iDec, Event& event) {
 
   // Photon radiation implemented only for two-body decay to leptons.
   else if (doGammaRad && mult == 2 && event[iProd[1]].isLepton()
-  && event[iProd[2]].isLepton())
+  && event[iProd[2]].isLepton()) {
     timesDecPtr->showerQED( iProd[1], iProd[2], event, mProd[0]);
+    checkForHadronization = true;
 
   // For Hidden Valley particles also allow leptons to shower.
-  else if (event[iDec].idAbs() > 4900000 && event[iDec].idAbs() < 5000000
+  } else if (event[iDec].idAbs() > 4900000 && event[iDec].idAbs() < 5000000
   && doFSRinDecays && mult == 2 && event[iProd[1]].isLepton()) {
     event[iProd[1]].scale(mProd[0]);
     event[iProd[2]].scale(mProd[0]);
     timesDecPtr->shower( iProd[1], iProd.back(), event, mProd[0]);
+    checkForHadronization = true;
+  }
+  if( checkForHadronization ) {
+    for(int i = iProd.back()+1; i < event.size(); ++i ) {
+      if( event[i].status() > 0  && event[i].colType() != 0 ) {
+        hasPartons = keepPartons = true;
+        break;
+      }
+    }
   }
 
   // Done.
   return true;
 
+}
+
+//--------------------------------------------------------------------------
+
+// Perform decays on all particles in the event.
+
+bool ParticleDecays::decayAll(Event& event, double minWidth) {
+
+  // Loop through all entries to find those that should decay.
+  bool gotMoreToDo = false;
+  for (int iDec = 0; iDec < event.size(); ++iDec) {
+    Particle& decayer = event[iDec];
+    if ( decayer.isFinal() && decayer.canDecay() && decayer.mayDecay()
+      && (decayer.mWidth() >= minWidth || decayer.idAbs() == 311) ) {
+      decay(iDec, event);
+      if (moreToDo()) gotMoreToDo = true;
+    }
+  }
+
+  return gotMoreToDo;
 }
 
 //--------------------------------------------------------------------------
@@ -843,6 +915,7 @@ bool ParticleDecays::dalitzKinematics(Event& event) {
     // Reconstruct required rotations and boosts backwards.
     Vec4 pDec    = decayer.p();
     int  iGam    = (meMode < 13) ? mult - 1 : 2 - iDal;
+    Vec4 qGam    = event[iProd[iGam]].p();
     Vec4 pGam    = event[iProd[iGam]].p();
     pGam.bstback( pDec, decayer.m() );
     double phiGam = pGam.phi();
@@ -871,17 +944,13 @@ bool ParticleDecays::dalitzKinematics(Event& event) {
     double pY       = pGamAbs * sinTheta * sin(phi);
     double pZ       = pGamAbs * cosTheta;
     double eA       = sqrt( mA*mA + pGamAbs*pGamAbs);
-    double eB       = sqrt( mB*mB + pGamAbs*pGamAbs);
     prodA.p(  pX,  pY,  pZ, eA);
-    prodB.p( -pX, -pY, -pZ, eB);
 
     // Boost to lab frame.
     prodA.bst( pGam, mGam);
-    prodB.bst( pGam, mGam);
     prodA.rot( thetaGam, phiGam);
-    prodB.rot( thetaGam, phiGam);
     prodA.bst( pDec, decayer.m() );
-    prodB.bst( pDec, decayer.m() );
+    prodB.p(qGam - prodA.p());
   }
 
   // Done.

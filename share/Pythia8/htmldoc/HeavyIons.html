@@ -59,11 +59,14 @@ primary <code>Pythia</code> object.
 <a name="anchor2"></a>
 <p/><code>flag&nbsp; </code><strong> HeavyIon:showInit &nbsp;</strong> 
  (<code>default = <strong>on</strong></code>)<br/>
-Output detailed initialization information from the heavy ion 
-model. Typically there will be several <code>Pythia</code> object initialised 
-in a heavy ion run, this flag can be used to reduce the amount of output. 
-If off, only the output from initialisation of the primary <code>Pythia</code> 
-object will be shown 
+<strong>Please note:</strong> this flag is not currently in use due to 
+conflicts with the <a href="Parallelism.html" target="page">Parallelism</a> 
+framework, but is expected to be reintroduced in the future. Output 
+detailed initialization information from the heavy ion 
+model. Typically there will be several <code>Pythia</code> object 
+initialised in a heavy ion run, this flag can be used to reduce the 
+amount of output.  If off, only the output from initialisation of the 
+primary <code>Pythia</code> object will be shown. 
    
  
 <p/> 
@@ -199,7 +202,7 @@ parameters.
  
 <a name="anchor9"></a>
 <p/><code>pvec&nbsp; </code><strong> HeavyIon:SigFitDefPar &nbsp;</strong> 
- (<code>default = <strong>17.24,2.15,0.33,0.0,0.0,0.0,0.0,0.0</strong></code>)<br/>
+ (<code>default = <strong>{17.24,2.15,0.33,0.0,0.0,0.0,0.0,0.0}</strong></code>)<br/>
 These are the default values of the parameters of the 
 <code>SubCollisionModel</code> in Angantyr. They will be used as starting 
 point when fitting to the inclusive nucleon cross sections. 
@@ -215,7 +218,7 @@ Eight different cross sections may be fitted to but it is possible to select
 only some of them: 
 <a name="anchor10"></a>
 <p/><code>pvec&nbsp; </code><strong> HeavyIon:SigFitErr &nbsp;</strong> 
- (<code>default = <strong>0.02,0.02,0.1,0.05,0.05,0.0,0.1,0.0</strong></code>; <code>minimum = 0.0</code>; <code>maximum = 1.0</code>)<br/>
+ (<code>default = <strong>{0.02,0.02,0.1,0.05,0.05,0.0,0.1,0.0}</strong></code>; <code>minimum = 0.0</code>; <code>maximum = 1.0</code>)<br/>
 The relative error assumed in the calculation of goodness of fit 
 corresponding to the different cross sections fitted to. The cross 
 sections are obtained from the 
@@ -454,4 +457,4 @@ complete the full nucleaus-nucleus collision.
 </body>
 </html>
  
-<!-- Copyright (C) 2020 Torbjorn Sjostrand --> 
+<!-- Copyright (C) 2022 Torbjorn Sjostrand --> 

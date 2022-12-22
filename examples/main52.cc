@@ -1,5 +1,5 @@
 // main52.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -58,7 +58,7 @@ int main() {
 
   // PDF path.
   string pdfPath;
-  
+
   // Loop over one default run and one with new PDF.
   for (int iRun = 0; iRun < 2; ++iRun) {
 
@@ -69,7 +69,7 @@ int main() {
     Pythia pythia;
     Event& event = pythia.event;
     pdfPath = pythia.settings.word("xmlPath") + "../pdfdata";
-    
+
     // Generate minimum-bias events, with or without double diffraction.
     pythia.readString("SoftQCD:nonDiffractive = on");
     //pythia.readString("SoftQCD:doubleDiffractive = on");

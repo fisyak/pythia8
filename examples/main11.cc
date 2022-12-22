@@ -1,5 +1,5 @@
 // main11.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -16,7 +16,7 @@ int main() {
   // You can always read an plain LHE file,
   // but if you ran "./configure --with-gzip" before "make"
   // then you can also read a gzipped LHE file.
-#ifdef GZIPSUPPORT
+#ifdef GZIP
   bool useGzip = true;
 #else
   bool useGzip = false;

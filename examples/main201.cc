@@ -1,5 +1,5 @@
 // main201.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -89,7 +89,6 @@ int main() {
     SlowJet slowJet( -1, radius, pTjetMin, etaMax, nSel, 1);
 
     // Begin event loop.
-    double sumWeights = 0.;
     for (int iEvent = 0; iEvent < nEvent; ++iEvent) {
 
       // Generate event.
@@ -102,7 +101,6 @@ int main() {
 
       // Check for weights
       double weight = pythia.info.weight();
-      sumWeights += weight;
 
       // Analyze Slowet jet properties. List first few.
       slowJet. analyze( pythia.event );

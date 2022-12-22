@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # configure is a part of the PYTHIA event generator.
-# Copyright (C) 2020 Torbjorn Sjostrand.
+# Copyright (C) 2022 Torbjorn Sjostrand.
 # PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 # Please respect the MCnet Guidelines, see GUIDELINES for details.
 # Author: Philip Ilten, October 2014 - November 2017.
@@ -61,11 +61,13 @@ Optional external packages.
              Note: this option automatically invokes DIR/bin/root-config to set 
              the ROOT lib/ and include/ paths. To set your ROOT paths manually
              instead, use --with-root-lib=DIR and --with-root-include=DIR.
-  yoda     : Lightweight histogramming package for use with RIVET.
   gzip     : Enable reading of GZIPPED files using the libz library.
   python   : Interface to use PYTHIA in Python, requires "Python.h".
   mg5mes   : MadGraph matrix element plugins for parton showers.
-  openmp   : Multi-threading support via OpenMP.  
+  openmp   : Multi-threading support via OpenMP.
+  mpich    : Multi-threading support via MPICH. 
+  hdf5     : Support the use of HDF5.
+  highfive : HighFive headers, also needed for reading HDF5 Les Houches.
 
 Installation directories.
 --prefix=DIR           : Directory to install PYTHIA [$PWD].
@@ -87,14 +89,18 @@ Advanced options.
 --cxx-soname='FLAGS' : Use these C++ flags when setting shared library names.
 --lib-suffix=SUF     : Shared library name suffix: [.so] for Linux and [.dylib]
                        for OS X.
+--obj-common='FLAGS' : Set the common C++ flags used for object (.o) compilation
+                       only (not linking).
 BLOCKTEXT
 OPTIONS="-h --h -help --help --enable-debug --enable-optdebug --lcg"
 OPTIONS+=" --prefix --prefix-bin --prefix-lib --prefix-include --prefix-share"
 for PKG in "evtgen" "fastjet3" "hepmc2" "hepmc3" "lhapdf5" "lhapdf6" "powheg"\
-    "rivet" "root" "yoda" "gzip" "python" "mg5mes" "openmp"; do
+    "rivet" "root" "yoda" "gzip" "python" "mg5mes" "openmp" "mpich" "hdf5"\
+    "highfive"; do
     OPTIONS+=" --with-$PKG --with-$PKG-bin --with-$PKG-lib --with-$PKG-include"
     OPTIONS+="  --with-$PKG-config --with-$PKG-version"; done
 OPTIONS+=" --arch --cxx --cxx-common --cxx-shared --cxx-soname --lib-suffix"
+OPTIONS+=" --obj-common"
 
 ################################################################################
 # FUNCTION: Configure a package.
@@ -151,27 +157,28 @@ function configure_package() {
     if [ -n "${PKG_CFG[10]}" ]; then PKG_EXE=${PKG_CFG[10]};
     else PKG_CFG[10]=$PKG_EXE; fi
     if [ -z "${PKG_CFG[1]}" ];  then
-	if $PKG_EXE $PKG_BIN &> /dev/null && [ -z "$PKG_DIR" ] &&
-	   [ -n "$PKG_BIN" ]; then PKG_CFG[1]=$($PKG_EXE $PKG_BIN)
-	elif [ -n "$PKG_DIR" ]; then
+	if [ -n "$PKG_DIR" ]; then
 	    if [ -d "$PKG_DIR/bin" ]; then PKG_CFG[1]=$PKG_DIR/bin
 	    else PKG_CFG[1]=$PKG_DIR; fi
+	    PKG_CFG[1]=$(cd ${PKG_CFG[1]} 2> /dev/null && pwd -P)
+	elif $PKG_EXE $PKG_BIN &> /dev/null && [ -z "$PKG_DIR" ] &&
+	   [ -n "$PKG_BIN" ]; then PKG_CFG[1]=$($PKG_EXE $PKG_BIN 2> /dev/null)
 	fi
     fi
     if [ -z "${PKG_CFG[2]}" ]; then
-	if $PKG_EXE $PKG_INC &> /dev/null && [ -z "$PKG_DIR" ] &&
-	   [ -n "$PKG_INC" ]; then PKG_CFG[2]=$($PKG_EXE $PKG_INC)
-	elif [ -n "$PKG_DIR" ]; then
+	if [ -n "$PKG_DIR" ]; then
 	    if [ -d "$PKG_DIR/include" ]; then PKG_CFG[2]=$PKG_DIR/include
 	    else PKG_CFG[2]=$PKG_DIR; fi
+	elif $PKG_EXE $PKG_INC &> /dev/null && [ -z "$PKG_DIR" ] &&
+	   [ -n "$PKG_INC" ]; then PKG_CFG[2]=$($PKG_EXE $PKG_INC 2> /dev/null)
 	fi
     fi
     if [ -z "${PKG_CFG[3]}" ]; then
-	if $PKG_EXE $PKG_LIB &> /dev/null && [ -z "$PKG_DIR" ] &&
-	   [ -n "$PKG_LIB" ]; then PKG_CFG[3]=$($PKG_EXE $PKG_LIB)
-	elif [ -n "$PKG_DIR" ]; then
+	if [ -n "$PKG_DIR" ]; then
 	    if [ -d "$PKG_DIR/lib" ]; then PKG_CFG[3]=$PKG_DIR/lib
 	    else PKG_CFG[3]=$PKG_DIR; fi
+	elif $PKG_EXE $PKG_LIB &> /dev/null && [ -z "$PKG_DIR" ] &&
+	   [ -n "$PKG_LIB" ]; then PKG_CFG[3]=$($PKG_EXE $PKG_LIB 2> /dev/null)
 	fi
     fi
 
@@ -180,12 +187,12 @@ function configure_package() {
     for INC in ${PKG_CFG[2]}; do
 	INC=${INC#-I}
 	if [ "${INC:0:1}" = "-" ]; then continue; fi
-	PKG_INC+=("-I$INC"); done
+	PKG_INC+=("-I$(cd $INC 2> /dev/null && pwd -P)"); done
     for LIB in ${PKG_CFG[3]}; do
 	LIB=${LIB#-L}
 	if [ "${LIB:0:1}" = "-" ]; then continue; fi
-	PKG_LIB+=("-L$LIB")
-	PKG_LIB+=("-Wl,-rpath,$LIB")
+	PKG_LIB+=("-L$(cd $LIB 2> /dev/null && pwd -P)")
+	PKG_LIB+=("-Wl,-rpath,$(cd $LIB 2> /dev/null && pwd -P)")
     done
     PKG_CFG[2]="${PKG_INC[@]}"; PKG_CFG[3]="${PKG_LIB[@]}"
     
@@ -230,7 +237,7 @@ function configure_package() {
 	local VAL="${PKG_CFG[$IDX]}"
 	VAL="${VAL#"${VAL%%[![:space:]]*}"}"
 	VAL="${VAL%"${VAL##*[![:space:]]}"}"  
-	eval ${PKG}_CFG[$IDX]=\"$VAL\";
+	eval ${PKG}_CFG[$IDX]=\"$VAL\"
     done
     PKG_LIST+=($PKG)
 
@@ -303,7 +310,8 @@ if [ "$ARCH" != "LINUX" ] && [ "$ARCH" != "DARWIN" ]; then
 if [ -z "$CXX" ]; then warn "CXX not set, using g++."; CXX="g++"; fi
 if [ -z "$CXX_COMMON" ]; then
     CXX_COMMON="${ENABLE_DEBUG}${ENABLE_64BIT}"
-    CXX_COMMON="${CXX_COMMON}-std=c++11 -pedantic -W -Wall -Wshadow -fPIC"; fi
+    CXX_COMMON="${CXX_COMMON}-std=c++11 -pedantic -W -Wall -Wshadow -fPIC"
+    CXX_COMMON="${CXX_COMMON} -pthread"; fi
 if [ -z "$CXX_SHARED" ]; then
     if [ "$ARCH" = "LINUX" ];  then CXX_SHARED="-shared"; fi
     if [ "$ARCH" = "DARWIN" ]; then CXX_SHARED="-dynamiclib"; fi; fi
@@ -338,18 +346,19 @@ configure_package "LHAPDF5" "/afs/cern.ch/sw/lcg/releases/MCGenerators/lhapdf"\
 configure_package "LHAPDF6" "/afs/cern.ch/sw/lcg/releases/MCGenerators/lhapdf6"\
     "lhapdf-config" "" "--incdir" "--libdir" "" "LHAPDF/LHAPDF.h" "LHAPDF" ""
 configure_package "POWHEG" "" "" "" "" "" "hvq" "" "" ""
-configure_package "RIVET" "" "rivet-config" "" "--includedir" "--libdir" ""\
-    "Rivet/Rivet.hh" "Rivet" "FASTJET3;HEPMC2;YODA"
+configure_package "RIVET" "" "rivet-config" "" "--includedir"\
+    "--libdir" "rivet-config" "Rivet/Rivet.hh" "Rivet" ""
 configure_package "ROOT" "/afs/cern.ch/sw/lcg/releases/ROOT" "root-config"\
     "--bindir" "--incdir" "--libdir" "rootcint;root-config" "TROOT.h" "Core" ""
-configure_package "YODA" "" "yoda-config" "" "--includedir" "--libdir" ""\
-    "YODA/YODA.h" "YODA" ""
 configure_package "GZIP" "" "" "" "" "" "" "zlib.h" "z" "" "-DGZIP"
 configure_package "PYTHON" "/afs/cern.ch/sw/lcg/external/Python"\
     "python-config" "" "--includes" "" "" "Python.h" "" ""
-configure_package "MG5MES" "" "" "" "echo plugins/mg5mes/sm" "" "" "PY8ME.h"\
+configure_package "MG5MES" "" "" "echo plugins/mg5mes" "" "" "" ""\
     "" ""
 configure_package "OPENMP" "" "" "" "" "" "" "" "gomp" "" "-fopenmp -DOPENMP"
+configure_package "MPICH" "" "" "" "" "" "mpic++" "mpi.h" "mpi" ""
+configure_package "HDF5" "" "" "" "" "" "" "hdf5.h" "hdf5" ""
+configure_package "HIGHFIVE" "" "" "" "" "" "" "highfive/H5File.hpp" "" ""
 
 # Check package dependencies (order does not matter).
 for IDX in ${!PKG_LIST[@]}; do
@@ -408,6 +417,7 @@ echo -n "  Further options             = "
 if [ "$ENABLE_DEBUG_SET" = true ];    then echo -n "--enable-debug ";    fi
 if [ "$ENABLE_OPTDEBUG_SET" = true ]; then echo -n "--enable-optdebug "; fi
 if [ "$LCG_SET" = true ];             then echo -n "--lcg=$LCG";         fi
+if [ "$OBJ_COMMON" != "" ];     then echo -n "OBJ_COMMON = $OBJ_COMMON"; fi
 echo ""
 cat >> $CFG_FILE << BLOCKTEXT
 
@@ -423,6 +433,7 @@ CXX_COMMON=$CXX_COMMON
 CXX_SHARED=$CXX_SHARED
 CXX_SONAME=$CXX_SONAME
 LIB_SUFFIX=$LIB_SUFFIX
+OBJ_COMMON=$OBJ_COMMON
 BLOCKTEXT
 echo -e "\nThe following optional external packages will be used:"
 for IDX in ${!PKG_LIST[@]}; do
@@ -438,7 +449,7 @@ for IDX in ${!PKG_LIST[@]}; do
 	if [ -z "$PKG_DIR" ]; then PKG_DIR="system"; fi
 	echo $(bold "  + $PKG")" ($PKG_DIR)"
     else
-        PKG_BIN=""; PKG_INC=""; PKG_LIB="";
+        PKG_BIN=""; PKG_INC=""; PKG_LIB=""; PKG_CONFIG=""
     fi
     cat >> $CFG_FILE << BLOCKTEXT
 

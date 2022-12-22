@@ -1,5 +1,5 @@
 // MergingHooks.h is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -203,13 +203,14 @@ public:
     muRinMESave(),
     doIgnoreEmissionsSave(true),
     doIgnoreStepSave(true), pTsave(), weightCKKWL1Save(), weightCKKWL2Save(),
-    nMinMPISave(), weightCKKWLSave(), weightFIRSTSave(), nJetMaxLocal(),
-    nJetMaxNLOLocal(),
+    nMinMPISave(), weightCKKWLSave(), weightFIRSTSave(),
+    doVariations(false), nWgts(0), nJetMaxLocal(), nJetMaxNLOLocal(),
     hasJetMaxLocal(false),
     includeWGTinXSECSave(false), nHardNowSave(), nJetNowSave(),
     tmsHardNowSave(), tmsNowSave() {
       inputEvent = Event(); resonances.resize(0);
-      useOwnHardProcess = false; hardProcess = 0; stopScaleSave= 0.0; }
+      useOwnHardProcess = false; hardProcess = 0; stopScaleSave= 0.0;
+      nVetoedInMainShower = 0;}
 
   // Make History class friend to allow access to advanced switches
   friend class History;
@@ -223,10 +224,6 @@ public:
   friend class TimeShower;
   // Make Merging class friend
   friend class Merging;
-
-  //----------------------------------------------------------------------//
-  // Functions that allow user interference
-  //----------------------------------------------------------------------//
 
   // Destructor.
   virtual ~MergingHooks();
@@ -279,10 +276,6 @@ public:
   // Initialize.
   virtual void init();
 
-  //----------------------------------------------------------------------//
-  // Simple output functions
-  //----------------------------------------------------------------------//
-
   // Function returning the value of the merging scale.
   double tms() {
     if(doCutBasedMergingSave) return 0.;
@@ -317,7 +310,7 @@ public:
   int nMaxJetsNLO()
     { return (hasJetMaxLocal) ? nJetMaxNLOLocal : nJetMaxNLOSave;}
   // Function to return hard process string.
-  string getProcessString() { return processSave;}
+  string getProcessString() { return processNow;}
   // Function to return the number of outgoing partons in the core process
   int nHardOutPartons(){ return hardProcess->nQuarksOut();}
   // Function to return the number of outgoing leptons in the core process
@@ -413,7 +406,7 @@ public:
     bool resetNjetMax = false);
 
   //----------------------------------------------------------------------//
-  // Functions to steer contruction of histories
+  // Functions to steer construction of histories
   //----------------------------------------------------------------------//
 
   // Function to force preferred picking of ordered histories. By default,
@@ -460,6 +453,7 @@ public:
   virtual bool canVetoEmission() { return !doIgnoreEmissionsSave; }
   // Function to check if emission should be rejected.
   virtual bool doVetoEmission( const Event& );
+  virtual bool usesVincia() {return false;}
 
   //----------------------------------------------------------------------//
   // Functions used as clusterings / probabilities
@@ -485,6 +479,13 @@ public:
   double tmsNow()     { return tmsNowSave;}
 
   void setHardProcessPtr(HardProcess* hardProcIn) { hardProcess = hardProcIn; }
+
+  //----------------------------------------------------------------------//
+  // Functions related to renormalization scale variations
+  //----------------------------------------------------------------------//
+
+  int nMuRVar() { return muRVarFactors.size(); }
+  void printIndividualWeights();
 
   //----------------------------------------------------------------------//
   // The members, switches etc.
@@ -548,7 +549,7 @@ public:
   int nJetMaxSave;
   int nJetMaxNLOSave;
 
-  string processSave;
+  string processSave, processNow;
 
   // List of cut values to used to define a merging scale. Ordering:
   // 0: DeltaR_{jet_i,jet_j,min}
@@ -582,10 +583,29 @@ public:
   bool doIgnoreStepSave;
   // Stored weights in case veot needs to be revoked
   double pTsave;
-  double weightCKKWL1Save, weightCKKWL2Save;
+  vector<double> weightCKKWL1Save, weightCKKWL2Save;
   int nMinMPISave;
   // Save CKKW-L weight / O(\alpha_s) weight.
-  double weightCKKWLSave, weightFIRSTSave;
+  vector<double> weightCKKWLSave, weightFIRSTSave;
+
+  // Struct to save individual weights
+  struct IndividualWeights {
+    vector<double> wtSave;
+    vector<double> pdfWeightSave;
+    vector<double> mpiWeightSave;
+    vector<double> asWeightSave;
+    vector<double> aemWeightSave;
+    vector<double> bornAsVarFac;
+  };
+
+  IndividualWeights individualWeights;
+
+  // Flag to indicate whether renormalization scale variations are performed
+  bool doVariations;
+  // Vector of variation factors applied to renormalization scale
+  vector<double> muRVarFactors;
+  // Number of weights, nominal + variations
+  int nWgts;
 
   // Local copies of nJetMax inputs, if recalculation is necessary.
   int nJetMaxLocal;
@@ -750,17 +770,17 @@ public:
   //----------------------------------------------------------------------//
 
   // Flag to indicate if events should be vetoed.
-  void doIgnoreStep( bool doIgnoreIn ) { doIgnoreStepSave = doIgnoreIn; }
+  void doIgnoreStep(bool doIgnoreIn) {doIgnoreStepSave = doIgnoreIn;}
   // Function to allow event veto.
-  virtual bool canVetoStep() { return !doIgnoreStepSave; }
+  virtual bool canVetoStep() {return !doIgnoreStepSave;}
 
   // Stored weights in case veto needs to be revoked
-  void storeWeights( double weight ){ weightCKKWL1Save = weightCKKWL2Save
-     = weight; }
+  void storeWeights(vector<double> weight) {
+    weightCKKWL1Save = weightCKKWL2Save = weight;}
 
   // Function to check event veto.
-  virtual bool doVetoStep( const Event& process, const Event& event,
-    bool doResonance = false );
+  virtual bool doVetoStep(const Event& process, const Event& event,
+    bool doResonance = false);
 
   // Set starting scales
   virtual bool setShowerStartingScales( bool isTrial, bool doMergeFirstEmm,
@@ -772,11 +792,11 @@ public:
   // Set shower stopping scale. Necessary to e.g. avoid accumulation of
   // incorrect (low-pT) shower weights through trial showering.
   double stopScaleSave;
-  void setShowerStoppingScale( double scale = 0.) { stopScaleSave = scale;}
-  double getShowerStoppingScale() { return stopScaleSave;}
+  void setShowerStoppingScale(double scale = 0.) {stopScaleSave = scale;}
+  double getShowerStoppingScale() {return stopScaleSave;}
 
-  void nMinMPI( int nMinMPIIn ) { nMinMPISave = nMinMPIIn; }
-  int nMinMPI() { return nMinMPISave;}
+  void nMinMPI(int nMinMPIIn) {nMinMPISave = nMinMPIIn; }
+  int nMinMPI() {return nMinMPISave;}
 
   //----------------------------------------------------------------------//
   // Functions for internal merging scale definions
@@ -801,19 +821,44 @@ public:
   //----------------------------------------------------------------------//
 
   // Function to get the CKKW-L weight for the current event
-  double getWeightNLO() { return (weightCKKWLSave - weightFIRSTSave);}
+  double getWeightNLO(int i=0) { return (weightCKKWLSave[i]
+                                         - weightFIRSTSave[i]);}
   // Return CKKW-L weight.
-  double getWeightCKKWL() { return weightCKKWLSave; }
+  vector<double> getWeightCKKWL() { return weightCKKWLSave; }
   // Return O(\alpha_s) weight.
-  double getWeightFIRST() { return weightFIRSTSave; }
+  vector<double> getWeightFIRST() { return weightFIRSTSave; }
   // Set CKKW-L weight.
-  void setWeightCKKWL( double weightIn){
+  void setWeightCKKWL( vector<double> weightIn){
     weightCKKWLSave = weightIn;
-    if ( !includeWGTinXSEC() ) infoPtr->setWeightCKKWL(weightIn); }
+    infoPtr->weightContainerPtr
+      ->weightsMerging.setValueVector(weightIn); }
   // Set O(\alpha_s) weight.
-  void setWeightFIRST( double weightIn){
+  void setWeightFIRST( vector<double> weightIn){
     weightFIRSTSave = weightIn;
-    infoPtr->setWeightFIRST(weightIn); }
+    infoPtr->weightContainerPtr->weightsMerging
+      .setValueFirstVector(weightIn); }
+  // Function to return Sudakov weight as calculated before, also include MPI
+  // weight. Only call after regular weight functions, since it is calculated
+  // there.
+  vector<double> getSudakovWeight() {
+    vector<double> ret = individualWeights.wtSave;
+    for (int i = 0; i < nWgts; ++i) {
+     ret[i] *= individualWeights.pdfWeightSave[i] *
+               individualWeights.mpiWeightSave[i];
+    }
+   return ret;
+  }
+  // Function to return coupling weight.
+  vector<double> getCouplingWeight() {
+    vector<double> ret = individualWeights.asWeightSave;
+    for (int i = 0; i < nWgts; ++i) {
+      ret[i] *= individualWeights.aemWeightSave[i];
+    }
+    return ret;
+  }
+
+//--------------------------------------------------------------------------
+
 
 
   //----------------------------------------------------------------------//
@@ -827,6 +872,11 @@ public:
   // Set the hard process information.
   void setHardProcessInfo(int nHardNowIn, double tmsHardNowIn) {
     nHardNowSave = nHardNowIn; tmsHardNowSave = tmsHardNowIn; }
+
+  // Statistics.
+  int nVetoedInMainShower;
+  void addVetoInMainShower() {++nVetoedInMainShower;}
+  int getNumberVetoedInMainShower() {return nVetoedInMainShower;}
 
 };
 

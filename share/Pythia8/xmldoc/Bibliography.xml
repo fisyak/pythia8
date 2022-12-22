@@ -327,6 +327,10 @@ p. 806</dd>
 <dd>K.J. Eskola, P.Paakkinen, H. Paukkunen and C.A. Salgado, 
 Eur. Phys. J. C77 (2017) 163 [arXiv:1612.05741 [hep-ph]]</dd> 
  
+<refit>Fer18</refit> 
+<dd>S. Ferreres-Sol&eacute; and T. Sj&ouml;strand, Eur. Phys. J. C78 (2018) 
+983 [arXiv:1808.04619v2 [hep-ph]]</dd> 
+ 
 <refit>Fis16</refit> 
 <dd>N. Fischer and T. Sj&ouml;strand, JHEP 1701 (2017) 140 
 [arXiv:1610.09818 [hep-ph]]</dd> 
@@ -347,6 +351,10 @@ P. Torrielli, Phys.Lett. B701 (2011) 427 [arXiv:1104.5613 [hep-ph]]</dd>
 <dd>R. Frederix, S. Frixione, JHEP 1212 (2012) 061 
 [arXiv:1209.6215 [hep-ph]]</dd> 
  
+<refit>Fre21</refit> 
+<dd>R. Frederix, I. Tsinikos, JHEP 11 (2021) 029 
+[arXiv:2108.07826 [hep-ph]]</dd> 
+ 
 <refit>Fri02</refit> 
 <dd>S. Frixione and B.R. Webber, JHEP 0206 (2002) 029 [hep-ph/0204244]</dd> 
  
@@ -356,6 +364,9 @@ P. Torrielli, Phys.Lett. B701 (2011) 427 [arXiv:1104.5613 [hep-ph]]</dd>
  
 <refit>Gas87</refit> 
 <dd>R. Gastmans, W. Troost and T. Wu, Phys.Lett. B184 (1987) 257</dd> 
+ 
+<refit>Gel20</refit> 
+<dd>L. Gellersen and S. Prestel, Phys. Rev. D101 (2020) 11</dd> 
  
 <refit>Glu95</refit> 
 <dd>M. Gl&uuml;ck, E. Reya and A. Vogt, Z. Phys. C67 (1995) 433</dd> 
@@ -625,6 +636,14 @@ Comput. Phys. Commun. 178 (2008) 852 [arXiv:0710.3820]</dd>
 <dd>T. Sj&ouml;strand et al., 
 Comput. Phys.Commun. 191 (2015) 159 [arXiv:1410.3012 [hep-ph]]</dd> 
  
+<refit>Sjo20</refit> 
+<dd>T. Sj&ouml;strand and M. Utheim, 
+Eur. Phys. J. C80 (2020) 907 [arXiv:2005.05658 [hep-ph]]</dd> 
+ 
+<refit>Sjo21</refit> 
+<dd>T. Sj&ouml;strand and M. Utheim, 
+LU TP 21-32 [arXiv:2108.03481 [hep-ph]]</dd> 
+ 
 <refit>Ska04</refit> 
 <dd>P. Skands et al., JHEP 07 (2004) 036 [hep-ph/0311123]</dd> 
  
@@ -653,4 +672,4 @@ J. Phys. G33 (2006) 1</dd>
  
 </chapter> 
  
-<!-- Copyright (C) 2020 Torbjorn Sjostrand --> 
+<!-- Copyright (C) 2022 Torbjorn Sjostrand --> 

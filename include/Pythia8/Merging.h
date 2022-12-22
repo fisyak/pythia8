@@ -1,10 +1,10 @@
 // Merging.h is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
 // This file is written by Stefan Prestel.
-// Merging: Wpapper class to interface matrix element merging schemes with
+// Merging: Wrapper class to interface matrix element merging schemes with
 //          Pythia
 
 #ifndef Pythia8_Merging_H
@@ -59,10 +59,6 @@ public:
 
 protected:
 
-  //----------------------------------------------------------------------//
-  // The members
-  //----------------------------------------------------------------------//
-
   // Make Pythia class friend
   friend class Pythia;
 
@@ -72,12 +68,12 @@ protected:
   // Pointer to trial MergingHooks object
   MergingHooksPtr mergingHooksPtr;
 
-  // Pointer to standard model couplings.
-  //CoupSM* coupSMPtr;
-
   // Minimal value found for the merging scale in events.
   double tmsNowMin;
   static const double TMSMISMATCH;
+
+  // Minimum allowed weight value to prevent division by zero.
+  static const double MINWGT;
 
   // Function to perform CKKW-L merging on the event.
   int mergeProcessCKKWL( Event& process);

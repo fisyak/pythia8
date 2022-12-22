@@ -1,5 +1,5 @@
 // ProcessContainer.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -78,11 +78,16 @@ bool ProcessContainer::init(bool isFirst, ResonanceDecays* resDecaysPtrIn,
   increaseMaximum = flag("PhaseSpace:increaseMaximum");
 
   // Store whether beam particle has a photon and save the mode.
-  gammaKinPtr        = gammaKinPtrIn;
-  beamHasGamma       = flag("PDF:lepton2gamma");
+  gammaKinPtr = gammaKinPtrIn;
 
   // Use external photon flux.
-  externalFlux = (mode("PDF:lepton2gammaSet") == 2);
+  approximatedGammaFlux = beamAPtr->hasApproxGammaFlux() ||
+    beamBPtr->hasApproxGammaFlux();
+
+  // Check whether photon sub-beams present.
+  bool beamAhasGamma = flag("PDF:beamA2gamma");
+  bool beamBhasGamma = flag("PDF:beamB2gamma");
+  beamHasGamma = beamAhasGamma || beamBhasGamma;
 
   // Pick and create phase space generator. Send pointers where required.
   if (phaseSpacePtr != 0) ;
@@ -106,24 +111,40 @@ bool ProcessContainer::init(bool isFirst, ResonanceDecays* resDecaysPtrIn,
   if (isLHA) {
     sigmaProcessPtr->setLHAPtr(lhaUpPtr);
     phaseSpacePtr->setLHAPtr(lhaUpPtr);
+
+    // Check if beams asymmetric and define a boost to CM frame if yes.
+    double relEnergyDiff = ( lhaUpPtr->eBeamA() - lhaUpPtr->eBeamB() )
+                         / ( lhaUpPtr->eBeamA() + lhaUpPtr->eBeamB() );
+    isAsymLHA = ( abs(relEnergyDiff) > 1.e-10 )
+             || ( lhaUpPtr->idBeamA() != lhaUpPtr->idBeamB() );
+    if (isAsymLHA) {
+      betazLHA = (sqrtpos(pow2(lhaUpPtr->eBeamA()) - pow2(infoPtr->mA()))
+               -  sqrtpos(pow2(lhaUpPtr->eBeamB()) - pow2(infoPtr->mB())))
+               / (lhaUpPtr->eBeamA() + lhaUpPtr->eBeamB());
+    }
   }
   sigmaProcessPtr->init(beamAPtr, beamBPtr, slhaInterfacePtr);
 
   // Store the state of photon beams using inFlux: 0 = not a photon beam;
-  // 1 = resolved photon; 2 = unresolved photon.
+  // 1 = resolved photon; 2 = unresolved photon. Resolved photon unless
+  // expcilitly an initiator or if beam unresolved and in-state not defined.
   string inState = sigmaProcessPtr->inFlux();
   beamAgammaMode = 0;
   beamBgammaMode = 0;
   gammaModeEvent = 0;
-  if ( beamAPtr->isGamma() || (beamHasGamma && beamAPtr->isLepton() ) ) {
-    if ( inState == "gmg" || inState == "gmq" || inState == "gmgm" )
+  if ( beamAPtr->isGamma() || beamAhasGamma ) {
+    if (isLHA) beamAgammaMode = beamAPtr->isUnresolved() ? 2 : 1;
+    else if ( inState == "gmg" || inState == "gmq" || inState == "gmf"
+        || inState == "gmgm" )
       beamAgammaMode = 2;
-    else if ( !(beamAPtr->isHadron()) ) beamAgammaMode = 1;
+    else beamAgammaMode = 1;
   }
-  if ( beamBPtr->isGamma() || (beamHasGamma && beamBPtr->isLepton() ) ) {
-    if ( inState == "ggm" || inState == "qgm" || inState == "gmgm" )
+  if ( beamBPtr->isGamma() || beamBhasGamma ) {
+    if (isLHA) beamBgammaMode = beamBPtr->isUnresolved() ? 2 : 1;
+    else if ( inState == "ggm" || inState == "qgm" || inState == "fgm"
+        || inState == "gmgm" )
       beamBgammaMode = 2;
-    else if ( !(beamBPtr->isHadron()) ) beamBgammaMode = 1;
+    else beamBgammaMode = 1;
   }
 
   // Save the photon modes and propagate further.
@@ -162,6 +183,10 @@ bool ProcessContainer::init(bool isFirst, ResonanceDecays* resDecaysPtrIn,
   sigmaTemp   = 0.;
   sigma2Temp  = 0.;
 
+  // Set up normalized variance for lhaStratAbs = 3.
+  normVar3 = (lhaStratAbs == 3 && lhaUpPtr->xSecSum() != 0)
+           ? pow2( lhaUpPtr->xErrSum() / lhaUpPtr->xSecSum()) : 0.;
+
   // Initialize process and allowed incoming partons.
   sigmaProcessPtr->initProc();
   if (!sigmaProcessPtr->initFlux()) return false;
@@ -175,7 +200,7 @@ bool ProcessContainer::init(bool isFirst, ResonanceDecays* resDecaysPtrIn,
   sigmaSgn            = phaseSpacePtr->sigmaSumSigned();
 
   // Check maximum by a few events, and extrapolate a further increase.
-  if (physical & !isLHA) {
+  if (physical & !isLHA && !isSoftQCD()) {
     int nSample = (nFin < 3) ? N12SAMPLE : N3SAMPLE;
     for (int iSample = 0; iSample < nSample; ++iSample) {
       bool test = false;
@@ -241,13 +266,15 @@ bool ProcessContainer::trialProcess() {
       if ( physical && !(beamAhasResGamma && beamBhasResGamma) ) {
         double sHatNew = gammaKinPtr->calcNewSHat( phaseSpacePtr->sHat() );
         phaseSpacePtr->rescaleSigma( sHatNew);
-        phaseSpacePtr->rescaleMomenta( sHatNew);
       }
 
       // With external photon flux calculate weight wrt. approximated fluxes.
-      if ( beamHasGamma && externalFlux ) {
+      if ( physical && beamHasGamma && approximatedGammaFlux ) {
         wtPDF  = phaseSpacePtr->weightGammaPDFApprox();
         wtFlux = gammaKinPtr->fluxWeight();
+      } else {
+        wtPDF  = 1.;
+        wtFlux = 1.;
       }
 
     }
@@ -304,7 +331,7 @@ bool ProcessContainer::trialProcess() {
     double sigmaNow = phaseSpacePtr->sigmaNow();
 
     // For photons with external flux correct the cross section.
-    if (beamHasGamma && externalFlux) sigmaNow *= wtFlux * wtPDF;
+    if (beamHasGamma && approximatedGammaFlux) sigmaNow *= wtFlux * wtPDF;
 
     // Tell if this event comes with weight from cross section.
     double sigmaWeight = 1.;
@@ -509,7 +536,7 @@ bool ProcessContainer::constructProcess( Event& process, bool isHardest) {
                        || (beamAgammaMode == 0 && beamBgammaMode == 2);
   if ( beamHasResGamma || (isGammaHadronDir && beamHasGamma) ) {
     double xGm1 = beamAPtr->xGamma();
-    if ( beamAPtr->isHadron()) {
+    if ( !(beamAPtr->gammaInBeam()) ) {
       process.append( beamAPtr->id(), -13, 1, 0, 0, 0, 0, 0,
         Vec4(0., 0., infoPtr->pzA(), infoPtr->eA()), beamAPtr->m(), 0. );
     } else {
@@ -519,7 +546,7 @@ bool ProcessContainer::constructProcess( Event& process, bool isHardest) {
     process[1].daughter1(3);
     ++nOffsetGamma;
     double xGm2 = beamBPtr->xGamma();
-    if ( beamBPtr->isHadron()) {
+    if ( !(beamBPtr->gammaInBeam()) ) {
       process.append( beamBPtr->id(), -13, 2, 0, 0, 0, 0, 0,
         Vec4(0., 0., infoPtr->pzB(), infoPtr->eB()), beamBPtr->m(), 0. );
     } else {
@@ -807,9 +834,10 @@ bool ProcessContainer::constructProcess( Event& process, bool isHardest) {
         scaleNow = process[mother1].m();
       if (scaleShow >= 0.0) scaleNow = scaleShow;
 
-      // Store Les Houches Accord partons.
+      // Store Les Houches Accord partons. Boost to CM frame if not already.
       int iNow = process.append( id, status, mother1, mother2, daughter1,
         daughter2, col1, col2, Vec4(px, py, pz, e), m, scaleNow, pol);
+      if (isAsymLHA) process[iNow].bst( 0., 0., -betazLHA);
 
       // Check if need to store lifetime.
       double tau = lhaUpPtr->tau(iOld);
@@ -1293,7 +1321,7 @@ void ProcessContainer::sigmaDelta() {
   // Only update once an event is accepted, as is needed if the event weight
   // can still change by a finite amount due to reweighting.
   double wgtNow = infoPtr->weight();
-  // infoPtr->weight() performs coversion to pb if lhaStratAbs = 4
+  // infoPtr->weight() performs conversion to pb if lhaStratAbs = 4
   if (lhaStrat    == 0) wgtNow  = sigmaTemp;
   if (lhaStratAbs == 3) wgtNow *= sigmaTemp;
   if (lhaStratAbs == 4) wgtNow /= 1e9;
@@ -1324,9 +1352,8 @@ void ProcessContainer::sigmaDelta() {
 
   // Estimated error. Quadratic sum of cross section term and
   // binomial from accept/reject step.
-  double delta2Sig   = (lhaStratAbs != 3)
-    ? (sigma2Sum * nTryInv - pow2(sigmaAvg)) * nTryInv / pow2(sigmaAvg)
-    : pow2( lhaUpPtr->xErrSum() / lhaUpPtr->xSecSum());
+  double delta2Sig   = (lhaStratAbs == 3) ? normVar3
+    : (sigma2Sum * nTryInv - pow2(sigmaAvg)) * nTryInv / pow2(sigmaAvg);
   double delta2Veto  = (nSel - nAcc) * nAccInv * nSelInv;
   double delta2Sum   = delta2Sig + delta2Veto;
   deltaFin           = sqrtpos(delta2Sum) * sigmaFin;
@@ -1360,6 +1387,7 @@ bool SetupContainers::init(vector<ProcessContainer*>& containerPtrs,
   // Set up requested objects for soft QCD processes.
   bool softQCD = settings.flag("SoftQCD:all");
   bool inelastic = settings.flag("SoftQCD:inelastic");
+  bool singleDiff = settings.flag("SoftQCD:singleDiffractive");
   if (softQCD || inelastic || settings.flag("SoftQCD:nonDiffractive")) {
     sigmaPtr = new Sigma0nonDiffractive;
     containerPtrs.push_back( new ProcessContainer(sigmaPtr) );
@@ -1368,9 +1396,13 @@ bool SetupContainers::init(vector<ProcessContainer*>& containerPtrs,
     sigmaPtr = new Sigma0AB2AB;
     containerPtrs.push_back( new ProcessContainer(sigmaPtr) );
   }
-  if (softQCD || inelastic || settings.flag("SoftQCD:singleDiffractive")) {
+  if ( softQCD || inelastic || singleDiff
+    || settings.flag("SoftQCD:singleDiffractiveXB")) {
     sigmaPtr = new Sigma0AB2XB;
     containerPtrs.push_back( new ProcessContainer(sigmaPtr) );
+  }
+  if ( softQCD || inelastic || singleDiff
+    || settings.flag("SoftQCD:singleDiffractiveAX") ) {
     sigmaPtr = new Sigma0AB2AX;
     containerPtrs.push_back( new ProcessContainer(sigmaPtr) );
   }
@@ -1605,63 +1637,63 @@ bool SetupContainers::init(vector<ProcessContainer*>& containerPtrs,
     containerPtrs.push_back( new ProcessContainer(sigmaPtr) );
   }
 
+  // Read in settings related to photon beams.
+  bool photonParton = settings.flag("PhotonParton:all");
+  int  photonMode   = settings.mode("Photon:ProcessType");
+  bool gammaA       = settings.flag("PDF:beamA2gamma")
+    || (abs(infoPtr->idA()) == 22);
+  bool gammaB       = settings.flag("PDF:beamB2gamma")
+    || (abs(infoPtr->idB()) == 22);
+
+  // Initialize process for photon on side A only when explicitly direct
+  // photons requested for side A or when a ''normal'' hadron on side A and
+  // a resolved photon on side B as important to use the proper flux/PDF.
+  // Otherwise initialize only one process (with the photon on side B).
+  bool initGammaA = ( (photonMode == 0) && (gammaA || gammaB) )
+    || ( (photonMode == 3) && gammaA )
+    || ( (photonMode == 1) && (gammaB && !gammaA) );
+  bool initGammaB = (photonMode == 0)
+    || ( (photonMode == 2) && gammaB )
+    || ( (photonMode == 1) && (gammaA && !gammaB) )
+    || (!gammaA && !gammaB);
+
+  // Initialize gm+gm processes only when explicitly needed with photon beams
+  // or when normal hadronic collisions.
+  bool initGammaGamma = ( (initGammaA || !gammaA) && (initGammaB || !gammaB) )
+    || (photonMode == 4 && gammaA && gammaB );
+
   // Set up requested objects for photon collision processes.
   bool photonCollisions = settings.flag("PhotonCollision:all");
-  bool hasGamma      = settings.flag("PDF:lepton2gamma");
-  int  photonMode    = settings.mode("Photon:ProcessType");
-  bool initGmGm      = !hasGamma || ( (photonMode == 4) || (photonMode == 0) );
-  if ( initGmGm && ( photonCollisions
-    || settings.flag("PhotonCollision:gmgm2qqbar") ) ) {
+  if ( ( photonCollisions || settings.flag("PhotonCollision:gmgm2qqbar") )
+       && initGammaGamma ) {
     sigmaPtr = new Sigma2gmgm2ffbar(1, 261);
     containerPtrs.push_back( new ProcessContainer(sigmaPtr) );
   }
-  if ( initGmGm && ( photonCollisions
-    || settings.flag("PhotonCollision:gmgm2ccbar") ) ) {
+  if ( ( photonCollisions || settings.flag("PhotonCollision:gmgm2ccbar") )
+       && initGammaGamma ) {
     sigmaPtr = new Sigma2gmgm2ffbar(4, 262);
     containerPtrs.push_back( new ProcessContainer(sigmaPtr) );
   }
-  if ( initGmGm && ( photonCollisions
-    || settings.flag("PhotonCollision:gmgm2bbbar") ) ) {
+  if ( ( photonCollisions || settings.flag("PhotonCollision:gmgm2bbbar") )
+       && initGammaGamma ) {
     sigmaPtr = new Sigma2gmgm2ffbar(5, 263);
     containerPtrs.push_back( new ProcessContainer(sigmaPtr) );
   }
-  if ( initGmGm && ( photonCollisions
-    || settings.flag("PhotonCollision:gmgm2ee") ) ) {
+  if ( ( photonCollisions || settings.flag("PhotonCollision:gmgm2ee") )
+       && initGammaGamma ) {
     sigmaPtr = new Sigma2gmgm2ffbar(11, 264);
     containerPtrs.push_back( new ProcessContainer(sigmaPtr) );
   }
-  if ( initGmGm && ( photonCollisions
-    || settings.flag("PhotonCollision:gmgm2mumu") ) ) {
+  if ( ( photonCollisions || settings.flag("PhotonCollision:gmgm2mumu") )
+       && initGammaGamma ) {
     sigmaPtr = new Sigma2gmgm2ffbar(13, 265);
     containerPtrs.push_back( new ProcessContainer(sigmaPtr) );
   }
-  if ( initGmGm && ( photonCollisions
-    || settings.flag("PhotonCollision:gmgm2tautau") ) ) {
+  if ( ( photonCollisions || settings.flag("PhotonCollision:gmgm2tautau") )
+       && initGammaGamma ) {
     sigmaPtr = new Sigma2gmgm2ffbar(15, 266);
     containerPtrs.push_back( new ProcessContainer(sigmaPtr) );
   }
-
-  // Read in settings related to photon beams.
-  bool photonParton  = settings.flag("PhotonParton:all");
-  bool beamAisHadron = abs(infoPtr->idA()) > 100;
-  bool beamBisHadron = abs(infoPtr->idB()) > 100;
-  bool isGammaGamma  = infoPtr->idA() == 22 && infoPtr->idB() == 22;
-  bool isGammaHadron = (infoPtr->idA() == 22 && beamBisHadron)
-                    || (infoPtr->idB() == 22 && beamAisHadron);
-
-  // Check if photon beams present.
-  int idAbsA     = abs(infoPtr->idA());
-  int idAbsB     = abs(infoPtr->idB());
-  bool hasGammaA = hasGamma && (idAbsA == 11 || idAbsA == 13 || idAbsA == 15);
-  bool hasGammaB = hasGamma && (idAbsB == 11 || idAbsB == 13 || idAbsB == 15);
-  bool gammaA    = hasGammaA || idAbsA == 22;
-  bool gammaB    = hasGammaB || idAbsB == 22;
-
-  // Initialize necessary amount of processes with initiating photons.
-  // When no photon beams initialize one instance (initGammaB == true).
-  bool initGammaA = gammaA && (photonMode == 0 || photonMode == 3);
-  bool initGammaB = !(isGammaGamma || hasGamma || isGammaHadron)
-    || ( (photonMode == 0 || photonMode == 2) && gammaB);
 
   // Set up requested objects for photon-parton processes.
   // In case of unresolved photons insert process with correct initiator.
@@ -1723,11 +1755,9 @@ bool SetupContainers::init(vector<ProcessContainer*>& containerPtrs,
   charmonium.setupSigma2gg(charmoniumSigmaPtrs);
   charmonium.setupSigma2qg(charmoniumSigmaPtrs);
   charmonium.setupSigma2qq(charmoniumSigmaPtrs);
-  charmonium.setupSigma2dbl(charmoniumSigmaPtrs);
   bottomonium.setupSigma2gg(bottomoniumSigmaPtrs);
   bottomonium.setupSigma2qg(bottomoniumSigmaPtrs);
   bottomonium.setupSigma2qq(bottomoniumSigmaPtrs);
-  bottomonium.setupSigma2dbl(bottomoniumSigmaPtrs);
   for (unsigned int i = 0; i < charmoniumSigmaPtrs.size(); ++i)
     containerPtrs.push_back( new ProcessContainer(charmoniumSigmaPtrs[i]) );
   for (unsigned int i = 0; i < bottomoniumSigmaPtrs.size(); ++i)
@@ -2655,6 +2685,7 @@ bool SetupContainers::init(vector<ProcessContainer*>& containerPtrs,
 
   // Set spin of particles in the Hidden Valley scenario.
   int spinFv = settings.mode("HiddenValley:spinFv");
+  int nFlavV = settings.mode("HiddenValley:nFlav");
   for (int i = 1; i < 7; ++i) {
     if (particleDataPtr->spinType( 4900000 + i) != spinFv + 1)
         particleDataPtr->spinType( 4900000 + i,    spinFv + 1);
@@ -2662,12 +2693,14 @@ bool SetupContainers::init(vector<ProcessContainer*>& containerPtrs,
         particleDataPtr->spinType( 4900010 + i,    spinFv + 1);
   }
   if (spinFv != 1) {
-    if (particleDataPtr->spinType( 4900101) != 2)
-       particleDataPtr->spinType( 4900101, 2);
+    for (int i = 1; i <= nFlavV; ++i)
+      if (particleDataPtr->spinType( 4900100 + i) != 2)
+        particleDataPtr->spinType( 4900100 + i, 2);
   } else {
     int spinqv = settings.mode("HiddenValley:spinqv");
-    if (particleDataPtr->spinType( 4900101) != 2 * spinqv + 1)
-        particleDataPtr->spinType( 4900101,    2 * spinqv + 1);
+    for (int i = 1; i <= nFlavV; ++i)
+      if (particleDataPtr->spinType( 4900100 + i) != 2 * spinqv + 1)
+        particleDataPtr->spinType( 4900100 + i,    2 * spinqv + 1);
   }
 
   // Set up requested objects for HiddenValley processes.

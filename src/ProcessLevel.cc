@@ -1,5 +1,5 @@
 // ProcessLevel.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -50,13 +50,17 @@ bool ProcessLevel::init( bool doLHA, SLHAinterface* slhaInterfacePtrIn,
   // Reference to Settings.
   Settings& settings = *settingsPtr;
 
-  // Check whether photon inside lepton and save the mode.
-  beamHasGamma     = settings.flag("PDF:lepton2gamma");
-  gammaMode        = settings.mode("Photon:ProcessType");
-  bool beamA2gamma = beamAPtr->isLepton() && beamHasGamma;
-  bool beamB2gamma = beamBPtr->isLepton() && beamHasGamma;
+  // Provisions for variable collision energy or beam kind.
+  doVarEcm        = settings.flag("Beams:allowVariableEnergy");
+  allowIDAswitch  = flag("Beams:allowIDAswitch");
 
-  // initialize gammaKinematics when relevant.
+  // Check whether photon inside lepton and save the mode.
+  bool beamA2gamma = settings.flag("PDF:beamA2gamma");
+  bool beamB2gamma = settings.flag("PDF:beamB2gamma");
+  beamHasGamma     = beamA2gamma || beamB2gamma;
+  gammaMode        = settings.mode("Photon:ProcessType");
+
+  // Initialize gammaKinematics when relevant.
   if (beamHasGamma)
     gammaKin.init();
 
@@ -64,16 +68,29 @@ bool ProcessLevel::init( bool doLHA, SLHAinterface* slhaInterfacePtrIn,
   resonanceDecays.init();
 
   // Set up SigmaTotal. Store sigma_nondiffractive for future use.
-  int    idA = infoPtr->idA();
-  int    idB = infoPtr->idB();
-  double eCM = infoPtr->eCM();
+  int    idA  = infoPtr->idA();
+  int    idB  = infoPtr->idB();
+  double eCM  = infoPtr->eCM();
   if (beamHasGamma) {
     int idAin = beamA2gamma ? 22 : idA;
     int idBin = beamB2gamma ? 22 : idB;
     sigmaTotPtr->calc( idAin, idBin, eCM);
+    sigmaND   = sigmaTotPtr->sigmaND();
+  } else {
+    // Usage of both sigmaTotPtr and sigmaCmbPtr to be fixed in the future.
+    sigmaTotPtr->calc( idA, idB, eCM);
+    double mA = particleDataPtr->m0(idA);
+    double mB = particleDataPtr->m0(idB);
+    sigmaND   = sigmaCmbPtr->sigmaPartial(idA, idB, eCM, mA, mB, 1);
   }
-  else sigmaTotPtr->calc( idA, idB, eCM);
-  sigmaND = sigmaTotPtr->sigmaND();
+
+  // Starting values for potential future energy/beam switch.
+  switchedID  = false;
+  switchedEcm = false;
+  eCMold      = eCM;
+
+  // Check whether Hidden Valley colours may be used.
+  useHVcols   = (settings.mode("HiddenValley:Ngauge") > 1);
 
   // Options to allow second hard interaction and resonance decays.
   doSecondHard   = settings.flag("SecondHard:generate");
@@ -183,9 +200,6 @@ bool ProcessLevel::init( bool doLHA, SLHAinterface* slhaInterfacePtrIn,
       "SUSY process switched on but no SUSY couplings found");
     return false;
   }
-
-  // Fill SLHA blocks SMINPUTS and MASS from PYTHIA SM parameter values.
-  slhaInterfacePtr->pythia2slha();
 
   // Initialize each process.
   int numberOn = 0;
@@ -351,9 +365,29 @@ bool ProcessLevel::init( bool doLHA, SLHAinterface* slhaInterfacePtrIn,
 
 //--------------------------------------------------------------------------
 
+// Switch to new beam particle identities.
+
+void ProcessLevel::updateBeamIDs() {
+
+  // Update beam identities for phase space selection.
+  for (int i = 0; i < int(containerPtrs.size()); ++i)
+    containerPtrs[i]->updateBeamIDs();
+  if (doSecondHard) {
+    for (int i2 = 0; i2 < int(container2Ptrs.size()); ++i2)
+      container2Ptrs[i2]->updateBeamIDs();
+  }
+  switchedID = true;
+
+}
+
+//--------------------------------------------------------------------------
+
 // Main routine to generate the hard process.
 
-bool ProcessLevel::next( Event& process) {
+bool ProcessLevel::next( Event& process, int procTypeIn) {
+
+  // Save procType. Is almost always = 0.
+  procType = procTypeIn;
 
   // Generate the next event with two or one hard interactions.
   bool physical = (doSecondHard) ? nextTwo( process) : nextOne( process);
@@ -462,13 +496,13 @@ void ProcessLevel::accumulate( bool doAccumulate) {
 
   // Cross section estimate for combination of first and second process.
   // Combine two possible ways and take average.
-  double sigmaComb  = 0.5 * (sigmaSum * sig2SelSum + sigSelSum * sigma2Sum);
-  sigmaComb        *= impactFac * maxPDFreweight / sigmaND;
-  if (allHardSame) sigmaComb *= 0.5;
-  double deltaComb  = (nAccSum == 0) ? 0. : sqrtpos(2. / nAccSum) * sigmaComb;
+  double sigmaCmb  = 0.5 * (sigmaSum * sig2SelSum + sigSelSum * sigma2Sum)
+                   * impactFac * maxPDFreweight / sigmaND;
+  if (allHardSame) sigmaCmb *= 0.5;
+  double deltaComb  = (nAccSum == 0) ? 0. : sqrtpos(2. / nAccSum) * sigmaCmb;
 
   // Store info and done.
-  infoPtr->setSigma( 0, "sum", nTrySum, nSelSum, nAccSum, sigmaComb,
+  infoPtr->setSigma( 0, "sum", nTrySum, nSelSum, nAccSum, sigmaCmb,
     deltaComb, weightSum);
 
 }
@@ -611,8 +645,22 @@ bool ProcessLevel::nextOne( Event& process) {
 
   // Update CM energy for phase space selection.
   double eCM = infoPtr->eCM();
-  for (int i = 0; i < int(containerPtrs.size()); ++i)
-    containerPtrs[i]->newECM(eCM);
+  if (eCM != eCMold && doVarEcm) {
+    for (int i = 0; i < int(containerPtrs.size()); ++i)
+      containerPtrs[i]->newECM(eCM);
+    eCMold      = eCM;
+    switchedEcm = true;
+  }
+
+  // New cross section values needed if switched id or updated energy.
+  if (switchedID || switchedEcm) {
+    sigmaMaxSum = 0.;
+    for (int i = 0; i < int(containerPtrs.size()); ++i) {
+      sigmaMaxSum += containerPtrs[i]->sigmaMaxSwitch();
+    }
+    switchedID  = false;
+    switchedEcm = false;
+  }
 
   // Outer loop in case of rare failures.
   bool physical = true;
@@ -624,11 +672,25 @@ bool ProcessLevel::nextOne( Event& process) {
     for ( ; ; ) {
 
       // Pick one of the subprocesses.
-      double sigmaMaxNow = sigmaMaxSum * rndmPtr->flat();
-      int iMax = containerPtrs.size() - 1;
-      iContainer = -1;
-      do sigmaMaxNow -= containerPtrs[++iContainer]->sigmaMax();
-      while (sigmaMaxNow > 0. && iContainer < iMax);
+      if (procType == 0) {
+        double sigmaMaxNow = sigmaMaxSum * rndmPtr->flat();
+        int iMax = containerPtrs.size() - 1;
+        iContainer = -1;
+        do sigmaMaxNow -= containerPtrs[++iContainer]->sigmaMax();
+        while (sigmaMaxNow > 0. && iContainer < iMax);
+
+      // Special forced subprocess. Only for variable-energy SoftQCD.
+      } else {
+        iContainer = -1;
+        for (int iC = 0; iC < int(containerPtrs.size()); ++iC)
+        if (containerPtrs[iC]->code() == 100 + procType)
+          iContainer = iC;
+        if (iContainer == -1) {
+          infoPtr->errorMsg("Error in ProcessLevel::nextOne: "
+          "requested procType unavailable");
+          continue;
+        }
+      }
 
       // Do a trial event of this subprocess; accept or not.
       if (containerPtrs[iContainer]->trialProcess()) break;
@@ -1181,9 +1243,9 @@ void ProcessLevel::findJunctions( Event& junEvent) {
   for (int i = 1; i<junEvent.size(); i++) {
 
     // Ignore colorless particles and stages before hard-scattering
-    // final state.
-    if (abs(junEvent[i].status()) <= 21 || junEvent[i].colType() == 0)
-      continue;
+    // final state. Also ignore shower branchings.
+    if (abs(junEvent[i].status()) <= 21 || junEvent[i].colType() == 0
+      || (junEvent[i].status() >= 40 && junEvent[i].status() <= 59) ) continue;
     vector<int> motherList   = junEvent[i].motherList();
     int iMot1 = motherList[0];
     vector<int> sisterList = junEvent[iMot1].daughterList();
@@ -1400,7 +1462,7 @@ void ProcessLevel::findJunctions( Event& junEvent) {
 }
 //--------------------------------------------------------------------------
 
-// Check that colours match up.
+// Check that colours match up. Also add Hidden Valley colours where relevant.
 
 bool ProcessLevel::checkColours( Event& process) {
 
@@ -1528,9 +1590,60 @@ bool ProcessLevel::checkColours( Event& process) {
 
   }
 
-  // Error message if problem found. Done.
+  // Error message if problem found.
   if (!physical) infoPtr->errorMsg("Error in ProcessLevel::checkColours: "
                    "unphysical colour flow");
+
+  // Find any HV-coloured Hidden Valley particle.
+  if (useHVcols) {
+  vector<int> iHV;
+    for (int i = 0; i < process.size(); ++i) {
+      int idAbs = process[i].idAbs();
+      if ( (idAbs > 4900000 && idAbs < 4900007)
+        || (idAbs > 4900010 && idAbs < 4900017) || idAbs == 4900021
+        || (idAbs > 4900100 && idAbs < 4900109) ) iHV.push_back( i);
+    }
+
+    // Study HV production and decays, and find when HV (anti)colours.
+    if (iHV.size() > 0) {
+      int i, idNow, motherNow, iMother, iSister, iM, colv, acolv;
+      for (int iv = 0; iv < int(iHV.size()); ++iv) {
+        i = iHV[iv];
+        idNow = process[i].id();
+
+        // Find if matching sister pair or mother-daughter relation.
+        motherNow = process[i].mother1();
+        iMother   = -1;
+        iSister   = -1;
+        for (int ivM = 0; ivM < iv; ++ivM) {
+          iM = iHV[ivM];
+          if (motherNow == iM) iMother = ivM;
+          if (motherNow == process[iM].mother1()) iSister = ivM;
+        }
+
+        // Assign HV-colours assuming simple relationships, or else new labels.
+        if (iMother >= 0) {
+          colv  = process[iHV[iMother]].colHV();
+          acolv = process[iHV[iMother]].acolHV();
+         } else if (iSister >= 0) {
+          colv  = process[iHV[iSister]].acolHV();
+          acolv = process[iHV[iSister]].colHV();
+        } else {
+          bool hasColv  = (idNow > 4900000 && idNow < 4900007)
+            || (idNow > 4900010 && idNow < 4900017) || idNow == 4900021
+            || (idNow > 4900100 && idNow < 4900109);
+          bool hasAcolv = (-idNow > 4900000 && -idNow < 4900007)
+            || (-idNow > 4900010 && -idNow < 4900017) || idNow == 4900021
+            || (-idNow > 4900100 && -idNow < 4900109);
+          colv  = (hasColv)  ? process.nextColTag() : 0;
+          acolv = (hasAcolv) ? process.nextColTag() : 0;
+        }
+        process[i].colsHV(colv, acolv);
+      }
+    }
+  }
+
+  // Done.
   return physical;
 
 }

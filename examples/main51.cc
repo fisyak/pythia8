@@ -1,5 +1,5 @@
 // main51.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -63,7 +63,7 @@ int main() {
   PDFPtr extPDF = make_shared<LHAPDF>
     ( 2212, "LHAPDF6:NNPDF31_nnlo_as_0118_luxqed", &info);
   PDFPtr intPDF = make_shared<LHAGrid1>
-    ( 2212, "20", "../share/Pythia8/xmldoc/", &info);
+    ( 2212, "20", "../share/Pythia8/pdfdata/", &info);
 
   // Alternative: compare two Pomeron PDF's. Boost second by factor 2.
   //PDF* extPDF = new PomFix( 990, -0.2, 2.5, 0., 3., 0.4, 0.5);

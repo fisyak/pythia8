@@ -1,5 +1,5 @@
 // SharedPointers.h is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -15,6 +15,9 @@ namespace Pythia8 {
 
 class BeamShape;
 typedef shared_ptr<BeamShape> BeamShapePtr;
+
+class ColourDipole;
+typedef shared_ptr<ColourDipole> ColourDipolePtr;
 
 class ColourReconnectionBase;
 typedef shared_ptr<ColourReconnectionBase> ColRecPtr;
@@ -46,8 +49,14 @@ typedef shared_ptr<MergingHooks> MergingHooksPtr;
 class PartonVertex;
 typedef shared_ptr<PartonVertex> PartonVertexPtr;
 
+class ParticleDataEntry;
+typedef shared_ptr<ParticleDataEntry> ParticleDataEntryPtr;
+
 class PDF;
 typedef shared_ptr<PDF> PDFPtr;
+
+class Plugin;
+typedef shared_ptr<Plugin> PluginPtr;
 
 class ShowerModel;
 typedef shared_ptr<ShowerModel> ShowerModelPtr;
@@ -66,6 +75,11 @@ typedef shared_ptr<TimeShower> TimeShowerPtr;
 
 class UserHooks;
 typedef shared_ptr<UserHooks> UserHooksPtr;
+
+class VinciaModule;
+typedef shared_ptr<VinciaModule> VinciaModulePtr;
+
+//==========================================================================
 
 } // end namespace Pythia8
 

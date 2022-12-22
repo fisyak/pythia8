@@ -1,5 +1,5 @@
 // main202.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -29,9 +29,10 @@ int main() {
 
   // Extract settings to be used in the main program.
   // Number of events, generated and listed ones.
-  int nEvent      = pythia.settings.mode("Main:numberOfEvents");
-  int showerModel = pythia.settings.mode("PartonShowers:Model");
-  Event& event    = pythia.event;
+  int nEvent         = pythia.settings.mode("Main:numberOfEvents");
+  int showerModel    = pythia.settings.mode("PartonShowers:Model");
+  bool hadronisation = pythia.settings.flag("HadronLevel:all");
+  Event& event       = pythia.event;
 
   //************************************************************************
 
@@ -44,8 +45,10 @@ int main() {
   string modelName = "Pythia";
   if (showerModel == 2) modelName = "Vincia";
   else if (showerModel == 3) modelName = "Dire";
-  Hist hNFinal(modelName + " nFinal",100,0.5,200.5);
-  Hist hNGam(modelName + " nPhotons",100,-0.5,199.5);
+  double scale = 1;
+  if (hadronisation) scale = 4;
+  Hist hNFinal(modelName + " nFinal",100,-0.5,double(scale*200.-0.5));
+  Hist hNGam(modelName + " nPhotons",100,-0.5,double(scale*100.-0.5));
   Hist hNEle(modelName + " nElectrons",100,-0.5,99.5);
 
   // Measure the cpu runtime.
@@ -54,7 +57,6 @@ int main() {
   start = clock();
 
   // Begin event loop. Generate event. Abort if error.
-  double sumWeights = 0.;
   for (int iEvent = 0; iEvent < nEvent; ++iEvent) {
 
     if (!pythia.next()) {
@@ -65,7 +67,6 @@ int main() {
 
     // Check for weights
     double weight = pythia.info.weight();
-    sumWeights += weight;
 
     // Count number of final-state particles.
     // Also count photons and electrons, to test QED.

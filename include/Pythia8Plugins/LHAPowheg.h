@@ -1,5 +1,5 @@
 // LHAPowheg.h is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 // Author: Philip Ilten, May 2015.
@@ -146,8 +146,12 @@ bool LHAupPowheg::fillHepEup() {
 
 // Define external handles to the plugin for dynamic loading.
 
-extern "C" LHAupPtr newLHAupPowheg(Pythia *pythia) {
-  return make_shared<LHAupPowheg>(pythia);
+extern "C" {
+
+  LHAupPowheg* newLHAup(Pythia *pythia) {return new LHAupPowheg(pythia);}
+
+  void deleteLHAup(LHAupPowheg* lha) {delete lha;}
+
 }
 
 //==========================================================================

@@ -1,5 +1,5 @@
 // FragmentationFlavZpT.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -779,7 +779,7 @@ void StringFlav::init() {
         if ( (idIn1Abs < 10) && (idIn2Abs < 10) ) { // quark - quark
           idUse = ( (idIn1Abs > idIn2Abs) ? idIn1 : idIn2 );
         } else { // quark - diquark
-          // Check if diquark contains a heavier flavour then the quark.
+          // Check if diquark contains a heavier flavour than the quark.
           bool useDiquark = false;
           for (int plus = 1; plus < 5; plus++)
             if (particleDataPtr->nQuarksInCode(idIn2Abs, idIn1Abs + plus) > 0)
@@ -828,7 +828,7 @@ void StringFlav::init() {
 // Pick a new flavour (including diquarks) given an incoming one for
 // Gaussian pTq^2 distribution.
 
-FlavContainer StringFlav::pickGauss(FlavContainer& flavOld) {
+FlavContainer StringFlav::pickGauss(FlavContainer& flavOld, bool allowPop) {
 
   // Initial values for new flavour.
   FlavContainer flavNew;
@@ -836,7 +836,7 @@ FlavContainer StringFlav::pickGauss(FlavContainer& flavOld) {
 
   // For original diquark assign popcorn quark and whether popcorn meson.
   int idOld = abs(flavOld.id);
-  if (flavOld.rank == 0 && idOld > 1000) assignPopQ(flavOld);
+  if (flavOld.rank == 0 && idOld > 1000 && allowPop) assignPopQ(flavOld);
 
   // Diquark exists, to be forced into baryon now.
   bool doOldBaryon    = (idOld > 1000 && flavOld.nPop == 0);
@@ -1135,6 +1135,58 @@ int StringFlav::combine(FlavContainer& flav1, FlavContainer& flav2) {
     : 1000 * idOrd1 + 100 * idOrd2 + 10 * idOrd3 + spinBar;
    return (flav1.id > 0) ? idBaryon : -idBaryon;
 
+}
+
+//--------------------------------------------------------------------------
+
+// Combine two flavours (including diquarks) to produce the lightest hadron
+// allowed for that flavour content. No popcorn flavours.
+
+int StringFlav::combineToLightest( int id1, int id2) {
+
+  // Recognize largest and smallest flavour.
+  int id1Abs = abs(id1);
+  int id2Abs = abs(id2);
+  int idMax  = max(id1Abs, id2Abs);
+  int idMin  = min(id1Abs, id2Abs);
+  int diqSgn = 0;
+
+  // Quark-antiquark to meson.
+  if (idMax < 9) {
+    int idMeson = 100 * idMax + 10 * idMin + 1;
+
+    // For nondiagonal mesons distinguish particle/antiparticle.
+    if (idMax != idMin) {
+      int sign = (idMax%2 == 0) ? 1 : -1;
+      if (diqSgn != 0) sign *= diqSgn;
+      else if ( (idMax == id1Abs && id1 < 0)
+          || (idMax == id2Abs && id2 < 0) ) sign = -sign;
+      idMeson *= sign;
+    }
+
+    // For light diagonal mesons pick pi0 or eta.
+    else if (idMax <  3) idMeson = 111;
+    else if (idMax == 3) idMeson = 221;
+
+    // Finished for mesons.
+    return idMeson;
+  }
+
+  // Quark-diquark to baryon
+  int idQQ1  = idMax / 1000;
+  int idQQ2  = (idMax / 100) % 10;
+  int idOrd1 = max( idMin, max( idQQ1, idQQ2) );
+  int idOrd3 = min( idMin, min( idQQ1, idQQ2) );
+  int idOrd2 = idMin + idQQ1 + idQQ2 - idOrd1 - idOrd3;
+
+  // Create baryon. Special cases with spin 3/2 and lambdalike.
+  int idBaryon = 1000 * idOrd1 + 100 * idOrd2 + 10 * idOrd3 + 2;
+  if (idOrd3 == idOrd1) idBaryon += 2;
+  else if (idOrd2 != idOrd1 && idOrd3 != idOrd2)
+    idBaryon = 1000 * idOrd1 + 100 * idOrd3 + 10 * idOrd2 + 2;
+
+  // Finished for baryons.
+  return (id1 > 0) ? idBaryon : -idBaryon;
 }
 
 //--------------------------------------------------------------------------

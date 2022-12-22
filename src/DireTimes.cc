@@ -1,5 +1,5 @@
 // DireTimes.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Stefan Prestel, Torbjorn Sjostrand.
+// Copyright (C) 2022 Stefan Prestel, Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -87,8 +87,6 @@ const double DireTimes::LEPTONZMAX     = 1. - 1e-4;
 void DireTimes::init( BeamParticle* beamAPtrIn,
   BeamParticle* beamBPtrIn) {
 
-cout << __FILE__ << " " << __LINE__ << endl;
-
   dryrun = false;
 
   // Colour factors.
@@ -101,7 +99,6 @@ cout << __FILE__ << " " << __LINE__ << endl;
   NC = settingsPtr->parm("DireColorQCD:NC") > 0.
      ? settingsPtr->parm("DireColorQCD:NC") : 3.0;
 
-cout << __FILE__ << " " << __LINE__ << endl;
   // Alternatively only initialize resonance decays.
   processLevel.initInfoPtr(*infoPtr);
   processLevel.initDecays(nullptr);
@@ -140,7 +137,6 @@ cout << __FILE__ << " " << __LINE__ << endl;
   pT2recombine       =
     pow2(max(0.,settingsPtr->parm("DireTimes:pTrecombine")));
 
-cout << __FILE__ << " " << __LINE__ << endl;
   // Charm and bottom mass thresholds.
   mc                 = max( MCMIN, particleDataPtr->m0(4));
   mb                 = max( MBMIN, particleDataPtr->m0(5));
@@ -196,7 +192,6 @@ cout << __FILE__ << " " << __LINE__ << endl;
   m2colCut           = pT2colCut;
   mTolErr            = settingsPtr->parm("Check:mTolErr");
 
-cout << __FILE__ << " " << __LINE__ << endl;
   double pT2minQED = pow2(settingsPtr->parm("TimeShower:pTminChgQ"));
   pT2minQED = min(pT2minQED, pow2(settingsPtr->parm("TimeShower:pTminChgL")));
   pT2cutSave = create_unordered_map<int,double>
@@ -220,29 +215,27 @@ cout << __FILE__ << " " << __LINE__ << endl;
     ("doQEDshowerByL",doQEDshowerByL)
     ("doQEDshowerByQ",doQEDshowerByQ);
 
-cout << __FILE__ << " " << __LINE__ << endl;
   usePDFalphas       = settingsPtr->flag("ShowerPDF:usePDFalphas");
   useSummedPDF       = settingsPtr->flag("ShowerPDF:useSummedPDF");
-  BeamParticle* beam = NULL;
-  if (beamAPtr != NULL || beamBPtr != NULL) {
-    beam = (beamAPtr != NULL && particleDataPtr->isHadron(beamAPtr->id())) ?
+  BeamParticle* beam = nullptr;
+  if (beamAPtr != nullptr || beamBPtr != nullptr) {
+    beam = (beamAPtr != nullptr && particleDataPtr->isHadron(beamAPtr->id())) ?
       beamAPtr
-         : (beamBPtr != NULL && particleDataPtr->isHadron(beamBPtr->id())) ?
-      beamBPtr : NULL;
-    if (beam == NULL && beamAPtr != 0) beam = beamAPtr;
-    if (beam == NULL && beamBPtr != 0) beam = beamBPtr;
+         : (beamBPtr != nullptr && particleDataPtr->isHadron(beamBPtr->id())) ?
+      beamBPtr : nullptr;
+    if (beam == nullptr && beamAPtr != 0) beam = beamAPtr;
+    if (beam == nullptr && beamBPtr != 0) beam = beamBPtr;
   }
-  alphaS2piOverestimate = (usePDFalphas && beam != NULL)
+  alphaS2piOverestimate = (usePDFalphas && beam != nullptr)
                         ? beam->alphaS(pT2colCut) * 0.5/M_PI
                         : (alphaSorder > 0) ? alphaS.alphaS(pT2colCut)*0.5/M_PI
                                             :  0.5 * 0.5/M_PI;
 
-  m2cPhys = (usePDFalphas) ? pow2(max(0.,beam->mQuarkPDF(4)))
-          : alphaS.muThres2(4);
-  m2bPhys = (usePDFalphas) ? pow2(max(0.,beam->mQuarkPDF(5)))
-          : alphaS.muThres2(5);
+  m2cPhys = (usePDFalphas && beam != nullptr) ?
+    pow2(max(0.,beam->mQuarkPDF(4))) : alphaS.muThres2(4);
+  m2bPhys = (usePDFalphas && beam != nullptr) ?
+    pow2(max(0.,beam->mQuarkPDF(5))) : alphaS.muThres2(5);
 
-cout << __FILE__ << " " << __LINE__ << endl;
   // Parameters of alphaEM generation.
   alphaEMorder       = settingsPtr->mode("TimeShower:alphaEMorder");
 
@@ -291,7 +284,6 @@ cout << __FILE__ << " " << __LINE__ << endl;
   // Number of MPI, in case MPI forces intervention in shower weights.
   nMPI = 0;
 
-cout << __FILE__ << " " << __LINE__ << endl;
   // Set splitting library, if already exists.
   if (splittingsPtr) splits = splittingsPtr->getSplittings();
 
@@ -301,7 +293,6 @@ cout << __FILE__ << " " << __LINE__ << endl;
     overhead.insert(make_pair(it->first,1.));
   }
 
-cout << __FILE__ << " " << __LINE__ << endl;
   // May have to fix up recoils related to rescattering.
   allowRescatter     = settingsPtr->flag("PartonLevel:MPI")
     && settingsPtr->flag("MultipartonInteractions:allowRescatter");
@@ -360,7 +351,6 @@ bool DireTimes::limitPTmax( Event& event, double, double) {
   dopTlimit1 = dopTlimit2 = false;
   int nHeavyCol = 0;
   if      (pTmaxMatch == 1) dopTlimit = dopTlimit1 = dopTlimit2 = true;
-  else if (pTmaxMatch == 2) dopTlimit = dopTlimit1 = dopTlimit2 = false;
 
   // Always restrict SoftQCD processes.
   else if (infoPtr->isNonDiffractive() || infoPtr->isDiffractiveA()
@@ -481,7 +471,7 @@ int DireTimes::shower( int iBeg, int iEnd, Event& event, double pTmax,
   pTLastBranch = 0.;
   do {
     double pTtimes = pTnext( event, pTmax, 0.);
-
+    infoPtr->setPTnow( pTtimes);
     // Do a final-state emission (if allowed).
     if (pTtimes > 0.) {
       if (branch( event)) {
@@ -1352,8 +1342,7 @@ void DireTimes::getQCDdip( int iRad, int colTag, int colSign,
     }
   }
 
-  double pTmax = event[iRad].scale();
-  pTmax = m( event[iRad], event[iRec]);
+  double pTmax = m( event[iRad], event[iRec]);
   int colType  = (event[iRad].id() == 21) ? 2 * colSign : colSign;
   int isrType  = (event[iRec].isFinal()) ? 0 : event[iRec].mother1();
   // This line in case mother is a rescattered parton.
@@ -1411,8 +1400,12 @@ bool DireTimes::appendDipole( const Event& state, int iRad, int iRec,
   }
 
   // Check and reset isr type.
-  if ( isrType == 0 && !state[iRec].isFinal() )
+  if ( isrType == 0 && !state[iRec].isFinal() ) {
     isrType = state[iRec].mother1();
+    while (isrType > 2 + beamOffset)
+      isrType = state[isrType].mother1();
+    if (isrType > 2) isrType -= beamOffset;
+  }
 
   // Check if designated color charge is connected.
   if (colType != 0) {
@@ -1695,10 +1688,13 @@ void DireTimes::checkDipoles(const Event& state) {
       dip->colType = colTypeNow;
     }
     // Check and reset isr type.
-    if ( dip->isrType == 0 && !state[iRec].isFinal() )
-      dip->isrType = state[iRec].mother1();
+    if ( dip->isrType == 0 && !state[iRec].isFinal() ) {
+      dip->isrType = state[iRec].mother1()          ;
+      while (dip->isrType > 2 + beamOffset)
+        dip->isrType = state[dip->isrType].mother1();
+      if (dip->isrType > 2) dip->isrType -= beamOffset;
+    }
   }
-
 }
 
 //--------------------------------------------------------------------------
@@ -2061,13 +2057,13 @@ double DireTimes::overheadFactors( DireTimesEnd* dip, const Event& state,
     && !state[dip->iRecoiler].isFinal()
     && particleDataPtr->colType(state[dip->iRecoiler].id()) != 0) {
 
-    BeamParticle* beam = NULL;
-    if (beamAPtr != NULL || beamBPtr != NULL) {
-      if (dip->isrType == 1 && beamAPtr != NULL) beam = beamAPtr;
-      if (dip->isrType != 1 && beamBPtr != NULL) beam = beamBPtr;
+    BeamParticle* beam = nullptr;
+    if (beamAPtr != nullptr || beamBPtr != nullptr) {
+      if (dip->isrType == 1 && beamAPtr != nullptr) beam = beamAPtr;
+      if (dip->isrType != 1 && beamBPtr != nullptr) beam = beamBPtr;
     }
 
-    if (beam != NULL) {
+    if (beam != nullptr) {
 
       double idRec       = state[dip->iRecoiler].id();
       int    iSysRec     = dip->systemRec;
@@ -2647,7 +2643,6 @@ void DireTimes::getNewSplitting( const Event& state, DireTimesEnd* dip,
 
   // Ensure positive weight.
   wt = abs(wt);
-
 }
 
 //--------------------------------------------------------------------------
@@ -2689,8 +2684,8 @@ pair<bool, pair<double,double> >  DireTimes::getMEC ( const Event& state,
     // Generate all histories
     DireHistory myHistory( nSteps, 0.0, newProcess, DireClustering(),
       mergingHooksPtr, (*beamAPtr), (*beamBPtr), particleDataPtr, infoPtr,
-      NULL, splits.begin()->second->fsr, splits.begin()->second->isr, weights,
-      coupSMPtr, true, true, 1.0, 1.0, 1.0, 1.0, 0);
+      nullptr, splits.begin()->second->fsr, splits.begin()->second->isr,
+      weights, coupSMPtr, true, true, 1.0, 1.0, 1.0, 1.0, 0);
     // Project histories onto desired branches, e.g. only ordered paths.
     myHistory.projectOntoDesiredHistories();
 
@@ -3279,7 +3274,6 @@ bool DireTimes::pT2nextQCD_FF(double pT2begDip, double pT2sel,
   double zMinAbs       = 0.0;
   double zMaxAbs       = 1.0;
   double teval         = pT2begDip;
-  double Lambda2       = Lambda3flav2;
   double emitCoefTot   = 0.;
   double wt            = 0.;
   bool   mustFindRange = true;
@@ -3348,21 +3342,9 @@ bool DireTimes::pT2nextQCD_FF(double pT2begDip, double pT2sel,
     fullWeightNow = overWeightNow = auxWeightNow = 0.;
 
     if (mustFindRange) {
-
       newOverestimates.clear();
       teval       = tnow;
       emitCoefTot = 0.;
-
-      // Determine overestimated z range; switch at c and b masses.
-      if (tnow > m2b) {
-        Lambda2  = Lambda5flav2;
-      } else if (tnow > m2c) {
-        Lambda2  = Lambda4flav2;
-      } else {
-        Lambda2  = Lambda3flav2;
-      }
-      // A change of renormalization scale expressed by a change of Lambda.
-      Lambda2 /= renormMultFac;
 
       // Calculate and add user-defined overestimates.
       getNewOverestimates( &dip, event, tnow, 1., zMinAbs, zMaxAbs,
@@ -3679,10 +3661,6 @@ bool DireTimes::pT2nextQCD_FI(double pT2begDip, double pT2sel,
   if (pT2begDip < pT2endDip) { dip.pT2 = 0.; return false; }
 
   BeamParticle& beam = (dip.isrType == 1) ? *beamAPtr : *beamBPtr;
-  /*double m2cPhys = (usePDFalphas) ? pow2(max(0.,beam.mQuarkPDF(4)))
-                 : alphaS.muThres2(4);
-  double m2bPhys = (usePDFalphas) ? pow2(max(0.,beam.mQuarkPDF(5)))
-                 : alphaS.muThres2(5);*/
 
   // Variables used inside evolution loop. (Mainly dummy start values.)
   dip.pT2              = pT2begDip;
@@ -3690,7 +3668,6 @@ bool DireTimes::pT2nextQCD_FI(double pT2begDip, double pT2sel,
   double zMinAbs       = 0.0;
   double zMaxAbs       = 1.0;
   double teval         = pT2begDip;
-  double Lambda2       = Lambda3flav2;
   double xPDFrecoiler  = 0.;
   double emitCoefTot   = 0.;
   double wt            = 0.;
@@ -3792,27 +3769,11 @@ bool DireTimes::pT2nextQCD_FI(double pT2begDip, double pT2sel,
 
     // Initialize evolution coefficients at the beginning and
     // reinitialize when crossing c and b flavour thresholds.
-    if (mustFindRange
-      || tnow < evalpdfstep(event[dip.iRecoiler].id(), tnow, m2cPhys, m2bPhys)*
-        teval) {
-
+    if (mustFindRange || tnow < evalpdfstep(event[dip.iRecoiler].id(),
+        tnow, m2cPhys, m2bPhys)*teval) {
       newOverestimates.clear();
       teval       = tnow;
       emitCoefTot = 0.;
-
-      // Determine overestimated z range; switch at c and b masses.
-      if (tnow > m2b) {
-        nFlavour = 5;
-        Lambda2  = Lambda5flav2;
-      } else if (tnow > m2c) {
-        nFlavour = 4;
-        Lambda2  = Lambda4flav2;
-      } else {
-        nFlavour = 3;
-        Lambda2  = Lambda3flav2;
-      }
-      // A change of renormalization scale expressed by a change of Lambda.
-      Lambda2 /= renormMultFac;
 
       // Parton density of daughter at current scale.
       pdfScale2    = (useFixedFacScale) ? fixedFacScale2 : factorMultFac*tnow;
@@ -4097,6 +4058,7 @@ bool DireTimes::pT2nextQCD_FI(double pT2begDip, double pT2sel,
     // More last resort.
     if ( idRecoiler == 21 && pdfScale2 == pT2colCut
       && pdfRatio > 50.) pdfRatio = 0.;
+    if (std::isinf(pdfRatio) || std::isnan(pdfRatio)) pdfRatio = 0.;
 
     fullWeightNow  *= pdfRatio*jacobian;
 
@@ -4805,7 +4767,7 @@ bool DireTimes::branch_FF( Event& event, bool trial,
 
     // Try to find incoming particle in other systems, i.e. if the current
     // system arose from a resonance decay.
-    bool sys = partonSystemsPtr->getSystemOf(iRadBef,true);
+    int sys = partonSystemsPtr->getSystemOf(iRadBef,true);
     int sizeSys = partonSystemsPtr->sizeSys();
     int in1 = partonSystemsPtr->getInA(sys);
     int in2 = partonSystemsPtr->getInB(sys);
@@ -4832,8 +4794,6 @@ bool DireTimes::branch_FF( Event& event, bool trial,
       //&& pT2 > pT2minMECs && checkSIJ(event,1.)) {
       && pT2 > pT2minMECs && checkSIJ(event,Q2minMECs)) {
 
-#ifdef MG5MES
-
       // Finally update the list of all partons in all systems.
       partonSystemsPtr->replace(iSysSel, iRadBef, iRad);
       partonSystemsPtr->addOut(iSysSel, iEmt);
@@ -4847,13 +4807,6 @@ bool DireTimes::branch_FF( Event& event, bool trial,
       partonSystemsPtr->replace(iSysSel, iRad, iRadBef);
       partonSystemsPtr->replace(iSysSelRec, iRec, iRecBef);
       partonSystemsPtr->popBackOut(iSysSel);
-
-#else
-
-      doMECreject = false;
-
-#endif
-
     }
 
     // Update dipoles and beams.
@@ -5233,6 +5186,8 @@ void DireTimes::updateAfterFF( int iSysSelNow, int iSysSelRec,
             && event[dip.iRadiator].idAbs() < 10)
             dip.colType = -abs(dip.colType)/2;
 
+          if (dip.colType == 0) dip.iRadiator = iRad;
+
           iDipEndCorr.push_back(i);
         }
 
@@ -5253,6 +5208,8 @@ void DireTimes::updateAfterFF( int iSysSelNow, int iSysSelRec,
             && event[dip.iRadiator].id()    < 0
             && event[dip.iRadiator].idAbs() < 10)
             dip.colType = -1;
+
+          if (dip.colType == 0) dip.iRecoiler = iRad;
 
           iDipEndCorr.push_back(i);
         }
@@ -5277,6 +5234,9 @@ void DireTimes::updateAfterFF( int iSysSelNow, int iSysSelRec,
 
         dip.colType = (event[dip.iRadiator].id() > 0)
                     ? abs(dip.colType) : -abs(dip.colType);
+
+        // Potentially also update recoiler!
+        if ( dip.iRecoiler == iRecBef ) dip.iRecoiler = iRec;
 
         iDipEndCorr.push_back(i);
 
@@ -5461,6 +5421,9 @@ bool DireTimes::branch_FI( Event& event, bool trial,
   int iRadBef      = (!trial) ? dipSel->iRadiator : split->iRadBef;
   int iRecBef      = (!trial) ? dipSel->iRecoiler : split->iRecBef;
   int isrType      = event[iRecBef].mother1();
+  while (isrType > 2 + beamOffset)
+    isrType = event[isrType].mother1();
+  if (isrType > 2) isrType -= beamOffset;
 
   // Find their momenta, with special sum for global recoil.
   Vec4 pRadBef     = event[iRadBef].p();
@@ -5935,9 +5898,6 @@ bool DireTimes::branch_FI( Event& event, bool trial,
     if ( isHardSystem && physical && doMEcorrections
       //&& pT2 > pT2minMECs && checkSIJ(event,1.)) {
       && pT2 > pT2minMECs && checkSIJ(event,Q2minMECs)) {
-
-#ifdef MG5MES
-
       // Temporarily update parton systems.
       partonSystemsPtr->replace(iSysSel, iRadBef, iRad);
       partonSystemsPtr->addOut(iSysSel, iEmt);
@@ -5952,13 +5912,6 @@ bool DireTimes::branch_FI( Event& event, bool trial,
       partonSystemsPtr->replace(iSysSel, iRad, iRadBef);
       partonSystemsPtr->replace(iSysSelRec, iRec, iRecBef);
       partonSystemsPtr->popBackOut(iSysSel);
-
-#else
-
-      doMECreject = false;
-
-#endif
-
     }
 
 
@@ -6319,6 +6272,9 @@ void DireTimes::updateAfterFI( int iSysSelNow, int iSysSelRec,
 
   bool hasDipSel   = (dipSel != 0);
   int isrType      = (hasDipSel) ? dipSel->isrType : event[iRec].mother1();
+  while (isrType > 2 + beamOffset)
+    isrType = event[isrType].mother1();
+  if (isrType > 2) isrType -= beamOffset;
   bool inResonance = (partonSystemsPtr->getInA(iSysSelNow)==0) ? true : false;
   int idEmt        = event[iEmt].id();
   vector<int> iDipEndCorr;
@@ -6584,7 +6540,6 @@ void DireTimes::updateAfterFI( int iSysSelNow, int iSysSelRec,
     direInfoPtr->updateResPos(iRecBef,iRec);
   if ( particleDataPtr->isResonance(event[iEmt].id()) )
     direInfoPtr->addResPos(iEmt);
-
 
   // Done.
 }
@@ -8266,20 +8221,20 @@ void DireTimes::list() const {
 double DireTimes::alphasNow( double pT2, double renormMultFacNow, int iSys ) {
 
   // Get beam for PDF alphaS, if necessary.
-  BeamParticle* beam = NULL;
-  if (beamAPtr != NULL || beamBPtr != NULL) {
-    beam = (beamAPtr != NULL && particleDataPtr->isHadron(beamAPtr->id()))
+  BeamParticle* beam = nullptr;
+  if (beamAPtr != nullptr || beamBPtr != nullptr) {
+    beam = (beamAPtr != nullptr && particleDataPtr->isHadron(beamAPtr->id()))
          ? beamAPtr
-         : (beamBPtr != NULL && particleDataPtr->isHadron(beamBPtr->id()))
-         ? beamBPtr : NULL;
-    if (beam == NULL && beamAPtr != 0) beam = beamAPtr;
-    if (beam == NULL && beamBPtr != 0) beam = beamBPtr;
+         : (beamBPtr != nullptr && particleDataPtr->isHadron(beamBPtr->id()))
+         ? beamBPtr : nullptr;
+    if (beam == nullptr && beamAPtr != 0) beam = beamAPtr;
+    if (beam == nullptr && beamBPtr != 0) beam = beamBPtr;
   }
   double scale       = pT2*renormMultFacNow;
   scale              = max(scale, pT2colCut);
 
   // Get alphaS(k*pT^2) and subtractions.
-  double asPT2pi      = (usePDFalphas && beam != NULL)
+  double asPT2pi      = (usePDFalphas && beam != nullptr)
                       ? beam->alphaS(scale)  / (2.*M_PI)
                       : alphaS.alphaS(scale) / (2.*M_PI);
 
@@ -8351,17 +8306,17 @@ double DireTimes::getNF(double pT2) {
 
   double NF = 6.;
 
-  BeamParticle* beam = NULL;
-  if (beamAPtr != NULL || beamBPtr != NULL) {
-    beam = (beamAPtr != NULL && particleDataPtr->isHadron(beamAPtr->id()))
+  BeamParticle* beam = nullptr;
+  if (beamAPtr != nullptr || beamBPtr != nullptr) {
+    beam = (beamAPtr != nullptr && particleDataPtr->isHadron(beamAPtr->id()))
          ? beamAPtr
-         : (beamBPtr != NULL && particleDataPtr->isHadron(beamBPtr->id()))
-         ? beamBPtr : NULL;
-    if (beam == NULL && beamAPtr != 0) beam = beamAPtr;
-    if (beam == NULL && beamBPtr != 0) beam = beamBPtr;
+         : (beamBPtr != nullptr && particleDataPtr->isHadron(beamBPtr->id()))
+         ? beamBPtr : nullptr;
+    if (beam == nullptr && beamAPtr != 0) beam = beamAPtr;
+    if (beam == nullptr && beamBPtr != 0) beam = beamBPtr;
   }
   // Get current number of flavours.
-  if ( !usePDFalphas || beam == NULL ) {
+  if ( !usePDFalphas || beam == nullptr ) {
     if ( pT2 > pow2( max(0., particleDataPtr->m0(5) ) )
       && pT2 < pow2( particleDataPtr->m0(6)) )                 NF = 5.;
     else if ( pT2 > pow2( max( 0., particleDataPtr->m0(4)) ) ) NF = 4.;

@@ -1,5 +1,5 @@
 // FragmentationSystems.h is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -83,7 +83,8 @@ public:
 
   // Insert a new qqbar colour singlet system in ascending mass order.
   // Calculate its properties.
-  bool simpleInsert( vector<int>& iPartonIn, Event& event);
+  bool simpleInsert( vector<int>& iPartonIn, Event& event,
+    bool fixOrder = false);
 
   // Erase a colour singlet system. (Rare operation.)
   void erase(int iSub) {singlets.erase(singlets.begin() + iSub);}

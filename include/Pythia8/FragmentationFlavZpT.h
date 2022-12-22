@@ -1,5 +1,5 @@
 // FragmentationFlavZpT.h is a part of the PYTHIA event generator.
-// Copyright (C) 2020 Torbjorn Sjostrand.
+// Copyright (C) 2022 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -115,11 +115,13 @@ public:
   // Pick a new flavour (including diquarks) given an incoming one,
   // either by old standard Gaussian or new alternative exponential.
   virtual FlavContainer pick(FlavContainer& flavOld, double pT = -1.0,
-    double nNSP = 0.0) { hadronIDwin = 0; idNewWin = 0; hadronMassWin = -1.0;
+    double nNSP = 0.0, bool allowPop = true) {
+    hadronIDwin = 0; idNewWin = 0; hadronMassWin = -1.0;
     if ( (thermalModel || mT2suppression) && (pT >= 0.0) )
       return pickThermal(flavOld, pT, nNSP);
-    return pickGauss(flavOld); }
-  virtual FlavContainer pickGauss(FlavContainer& flavOld);
+    return pickGauss(flavOld, allowPop); }
+  virtual FlavContainer pickGauss(FlavContainer& flavOld,
+    bool allowPop = true);
   virtual FlavContainer pickThermal(FlavContainer& flavOld,
     double pT, double nNSP);
 
@@ -131,6 +133,12 @@ public:
     FlavContainer flag1(id1); FlavContainer flag2(id2);
     for (int i = 0; i < 100; ++i) { int idNew = combine( flag1, flag2);
       if (idNew != 0 || !keepTrying) return idNew;} return 0;}
+
+  // Combine two flavours to produce a hadron with lowest possible mass.
+  virtual int combineToLightest( int id1, int id2);
+
+  // Lightest flavour-neutral meson.
+  virtual int idLightestNeutralMeson() { return 111; }
 
   // Return chosen hadron in case of thermal model.
   virtual int getHadronIDwin() { return hadronIDwin; }
@@ -246,6 +254,10 @@ public:
   // Fragmentation function: top-level to determine parameters.
   virtual double zFrag( int idOld, int idNew = 0, double mT2 = 1.);
 
+  // Fragmentation function: select z according to provided parameters.
+  virtual double zLund( double a, double b, double c = 1.);
+  virtual double zPeterson( double epsilon);
+
   // Parameters for stopping in the middle; overloaded for Hidden Valley.
   virtual double stopMass() {return stopM;}
   virtual double stopNewFlav() {return stopNF;}
@@ -269,10 +281,6 @@ protected:
   double mc2, mb2, aLund, bLund, aExtraSQuark, aExtraDiquark, rFactC,
          rFactB, rFactH, aNonC, aNonB, aNonH, bNonC, bNonB, bNonH,
          epsilonC, epsilonB, epsilonH, stopM, stopNF, stopS;
-
-  // Fragmentation function: select z according to provided parameters.
-  double zLund( double a, double b, double c = 1.);
-  double zPeterson( double epsilon);
 
 };
 
