@@ -1,9 +1,9 @@
 // main11.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
-// Keywords: basic usage; LHE file;
+// Keywords: basic usage; LHE file
 
 // This is a simple test program.
 // It illustrates how Les Houches Event File input can be used in Pythia8.
@@ -41,17 +41,15 @@ int main() {
   int iAbort = 0;
 
   // Begin event loop; generate until none left in input file.
-  for (int iEvent = 0; ; ++iEvent) {
+  while (iAbort < nAbort) {
 
     // Generate events, and check whether generation failed.
     if (!pythia.next()) {
 
       // If failure because reached end of file then exit event loop.
       if (pythia.info.atEndOfFile()) break;
-
-      // First few failures write off as "acceptable" errors, then quit.
-      if (++iAbort < nAbort) continue;
-      break;
+      ++iAbort;
+      continue;
     }
 
     // Sum up final charged multiplicity and fill in histogram.

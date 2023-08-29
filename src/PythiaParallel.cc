@@ -1,5 +1,5 @@
 // PythiaParallel.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Marius Utheim, Torbjorn Sjostrand.
+// Copyright (C) 2023 Marius Utheim, Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -19,8 +19,8 @@ namespace Pythia8 {
 // Contructor.
 
 PythiaParallel::PythiaParallel(string xmlDir, bool printBanner)
-  : pythiaHelper(xmlDir, printBanner), info(pythiaHelper.infoPrivate),
-    settings(pythiaHelper.settings), particleData(pythiaHelper.particleData)
+  : pythiaHelper(xmlDir, printBanner), settings(pythiaHelper.settings),
+    particleData(pythiaHelper.particleData), logger(pythiaHelper.logger)
 { }
 
 //--------------------------------------------------------------------------
@@ -30,8 +30,7 @@ PythiaParallel::PythiaParallel(string xmlDir, bool printBanner)
 bool PythiaParallel::readFile(string fileName, bool warn, int subrun) {
   ifstream is(fileName);
   if (!is.good()) {
-    info.errorMsg("Error in PythiaParallel::readFile: "
-                  "did not find file", fileName);
+    logger.ERROR_MSG("did not find file", fileName);
     return false;
   }
   // Hand over real work to next method.
@@ -40,8 +39,7 @@ bool PythiaParallel::readFile(string fileName, bool warn, int subrun) {
 
 bool PythiaParallel::readFile(istream& is, bool warn, int subrun) {
   if (isInit) {
-    info.errorMsg("Error in PythiaParallel::readFile: "
-      "cannot change further settings after constructing");
+    logger.ERROR_MSG("cannot change further settings after constructing");
     return false;
   }
   return pythiaHelper.readFile(is, warn, subrun);
@@ -52,33 +50,32 @@ bool PythiaParallel::readFile(istream& is, bool warn, int subrun) {
 // Initialize all Pythia objects.
 
 bool PythiaParallel::init() {
-  return init(function<bool(Pythia&)>());
+  return init(function<bool(Pythia*)>());
 }
 
-bool PythiaParallel::init(function<bool(Pythia&)> customInit) {
+bool PythiaParallel::init(function<bool(Pythia*)> customInit) {
 
   // Initialize error printing.
-  info.init();
+  logger.init(settings);
 
   // Read settings.
   int hardwareThreads = thread::hardware_concurrency();
   numThreads = settings.mode("Parallelism:numThreads");
   if (numThreads == 1)
-    info.errorMsg("Warning in PythiaParallel::init: "
-      "running on single thread");
+    logger.WARNING_MSG("running on single thread");
   else if (numThreads == 0) {
     if (hardwareThreads == 0) {
-      info.errorMsg("Error in PythiaParallel::init: cannot get "
-        "hardware_concurrency, numThreads must be set manually");
+      logger.ABORT_MSG(
+        "cannot get hardware_concurrency, numThreads must be set manually");
       return false;
     }
     numThreads = hardwareThreads;
     settings.mode("Parallelism:numThreads", hardwareThreads);
-    info.errorMsg("Info in PythiaParallel::init: "
-      "detected number of hardware threads", to_string(hardwareThreads));
+    logger.INFO_MSG("detected number of hardware threads",
+      to_string(hardwareThreads));
   }
   else if (numThreads > hardwareThreads) {
-    info.errorMsg("Warning in PythiaParallel::init: "
+    logger.WARNING_MSG(
       "requested numThreads is larger than hardware_concurrency",
       to_string(hardwareThreads));
   }
@@ -114,7 +111,7 @@ bool PythiaParallel::init(function<bool(Pythia&)> customInit) {
       pythiaObjects[iPythia]->settings.mode("Random:seed", seeds[iPythia]);
       pythiaObjects[iPythia]->settings.mode("Parallelism:index", iPythia);
 
-      if (customInit && !customInit(*pythiaObjects[iPythia]))
+      if (customInit && !customInit(pythiaObjects[iPythia].get()))
         initSuccess = false;
       if (!pythiaObjects[iPythia]->init())
         initSuccess = false;
@@ -127,15 +124,14 @@ bool PythiaParallel::init(function<bool(Pythia&)> customInit) {
 
   // Set initialization.
   if (!initSuccess) {
-    info.errorMsg("Abort from PythiaParallel::init: "
-      "failed to initialize all Pythia objects");
+    logger.ABORT_MSG("failed to initialize all Pythia objects");
     return false;
   }
   isInit = true;
 
   // Print warning message and return.
-  info.errorMsg("Warning in PythiaParallel: experimental feature, "
-    "please send feedback to authors@pythia.org");
+  logger.WARNING_MSG(
+    "experimental feature, please send feedback to authors@pythia.org");
   return true;
 
 }
@@ -145,16 +141,15 @@ bool PythiaParallel::init(function<bool(Pythia&)> customInit) {
 // Run Pythia objects.
 
 vector<long> PythiaParallel::run(long nEvents,
-  function<void(Pythia& pythia)> callback) {
+  function<void(Pythia* pythiaPtr)> callback) {
 
   if (!isInit) {
-    info.errorMsg("Abort from PythiaParallel::run: not initialized");
+    logger.ABORT_MSG("not initialized");
     return vector<long>();
   }
 
   if (nEvents < numThreads)
-    info.errorMsg("Warning in PythiaParallel::run: "
-      "more threads than events have been specified");
+    logger.WARNING_MSG("more threads than events have been specified");
   int numThreadsNow = nEvents > numThreads ? numThreads : int(nEvents);
   long nShowCount = settings.mode("Next:numberCount");
 
@@ -165,7 +160,7 @@ vector<long> PythiaParallel::run(long nEvents,
   vector<thread> threads;
 
   // Define the thread main that will run for each Pythia object.
-  auto threadMain = [&, this, callback](Pythia* pythia, int iPythia) {
+  auto threadMain = [&, this, callback](Pythia* pythiaPtr, int iPythia) {
 
     // If load is balanced, we need the number of events to run on this thread.
     long nLocalEvents = nEvents / numThreadsNow;
@@ -183,7 +178,7 @@ vector<long> PythiaParallel::run(long nEvents,
       else if (nStartedEvents++ >= nEvents) break;
 
       // Generate the event.
-      bool success = pythia->next();
+      bool success = pythiaPtr->next();
 
       // Increment counter for number of generated events.
       // Note the use of printf for thread safety.
@@ -196,12 +191,12 @@ vector<long> PythiaParallel::run(long nEvents,
 
       // Pass the generated event to the callback.
       if (success) {
-        if (processAsync)
-          callback(*pythia);
-        else {
+        if (processAsync) {
+          callback(pythiaPtr);
+        } else {
           // Lock access to the callback.
           const std::lock_guard<mutex> lock(callbackMutex);
-          callback(*pythia);
+          callback(pythiaPtr);
         }
       }
     }
@@ -218,7 +213,7 @@ vector<long> PythiaParallel::run(long nEvents,
   // Wait for each thread to finish.
   for (int iPythia = 0; iPythia < numThreadsNow; ++iPythia) {
     threads[iPythia].join();
-    info.errorCombine(pythiaObjects[iPythia]->info);
+    logger.errorCombine(pythiaObjects[iPythia]->logger);
 
     double weightSumNow = pythiaObjects[iPythia]->info.weightSum();
     weightSumSave += weightSumNow;
@@ -235,35 +230,32 @@ vector<long> PythiaParallel::run(long nEvents,
 
 // Perform the specified action for each Pythia instance.
 
-void PythiaParallel::foreach(function<void(Pythia&)> action) {
+void PythiaParallel::foreach(function<void(Pythia*)> action) {
 
   if (!isInit) {
-    info.errorMsg("Error in PythiaParallel::foreach: not initialized");
+    logger.ERROR_MSG("not initialized");
     return;
   }
 
   // Perform action in serial.
-  for (auto& pythia : pythiaObjects) action(*pythia);
+  for (auto& pythia : pythiaObjects) action(pythia.get());
 }
 
 //--------------------------------------------------------------------------
 
 // Perform the specified action for each instance in parallel.
 
-void PythiaParallel::foreachAsync(function<void(Pythia&)> action) {
+void PythiaParallel::foreachAsync(function<void(Pythia*)> action) {
 
   if (!isInit) {
-    info.errorMsg("Error in PythiaParallel::foreach: not initialized");
+    logger.ERROR_MSG("not initialized");
     return;
   }
-
-  // Wrap action to take a pointer argument.
-  auto actionWrapper = [action](Pythia* pythia) { return action(*pythia); };
 
   // Perform action in parallel.
   vector<thread> threads;
   for (auto& pythiaPtr : pythiaObjects)
-    threads.emplace_back(actionWrapper, pythiaPtr.get());
+    threads.emplace_back(action, pythiaPtr.get());
   for (thread& threadNow : threads)
     threadNow.join();
 

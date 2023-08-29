@@ -1,5 +1,5 @@
 // StringFragmentation.h is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -61,9 +61,8 @@ public:
 
   // Fragment off one hadron from the string system, in momentum space,
   // by taking steps either from positive or from negative end.
-  Vec4 kinematicsHadron(StringSystem& system,
-    vector<StringVertex>& stringVertices, bool useInputZ = false,
-    double zHadIn = 0.);
+  Vec4 kinematicsHadron(StringSystem& system, StringVertex& newVertex,
+    bool useInputZ = false, double zHadIn = 0.);
 
   // Generate momentum for some possible next hadron, based on mean values
   // to get an estimate for rapidity and pT.
@@ -117,10 +116,10 @@ public:
 
   // Initialize and save pointers.
   void init(StringFlav* flavSelPtrIn, StringPT* pTSelPtrIn, StringZ* zSelPtrIn,
-    FragModPtr fragModPtrIn = NULL);
+    FragModPtr fragModPtrIn = nullptr);
 
   // Do the fragmentation: driver routine.
-  bool fragment( int iSub, ColConfig& colConfig, Event& event);
+  bool fragment( int iSub, const ColConfig& colConfig, Event& event);
 
   // Find the boost matrix to the rest frame of a junction.
   RotBstMatrix junctionRestFrame(Vec4& p0, Vec4& p1, Vec4& p2);
@@ -163,6 +162,7 @@ private:
 
   // Vertex information from the fragmentation process.
   vector<StringVertex> stringVertices, legMinVertices, legMidVertices;
+  StringVertex newVertex;
 
   // Boost from/to rest frame of a junction to original frame.
   RotBstMatrix MfromJRF, MtoJRF;
@@ -183,17 +183,19 @@ private:
   StringEnd posEnd, negEnd;
 
   // Find region where to put first string break for closed gluon loop.
-  vector<int> findFirstRegion(int iSub, ColConfig& colConfig, Event& event);
+  vector<int> findFirstRegion(int iSub, const ColConfig& colConfig,
+    const Event& event) const;
 
   // Set flavours and momentum position for initial string endpoints.
-  void setStartEnds(int idPos, int idNeg, StringSystem systemNow,
+  void setStartEnds(int idPos, int idNeg, const StringSystem& systemNow,
     int legNow = 3);
 
   // Check remaining energy-momentum whether it is OK to continue.
   bool energyUsedUp(bool fromPos);
 
   // Produce the final two partons to complete the system.
-  bool finalTwo(bool fromPos, Event& event, bool usedPosJun, bool usedNegJun,
+  bool finalTwo(bool fromPos, const Event& event, bool usedPosJun,
+    bool usedNegJun,
   double nNSP);
 
   // Final region information.

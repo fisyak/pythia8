@@ -1,5 +1,5 @@
 // Pythia8Rivet.h is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -17,7 +17,7 @@
 #else
 #include "Pythia8Plugins/HepMC3.h"
 #endif
-#include "Pythia8/HIUserHooks.h"
+#include "Pythia8/HIInfo.h"
 #include <set>
 #include <vector>
 #include <string>

@@ -1,5 +1,5 @@
 // HiddenValleyFragmentation.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -422,8 +422,7 @@ bool HiddenValleyFragmentation::collapseToMeson() {
 
   // If too low mass then cannot do anything. Should not happen.
   if (mSys < 1.001 * mhvLight) {
-    infoPtr->errorMsg("Error in HiddenValleyFragmentation::collapseToMeson:"
-      " too low mass to do anything");
+    loggerPtr->ERROR_MSG("too low mass to do anything");
     return false;
   }
 

@@ -1,11 +1,11 @@
 // main280.cc is a part of PYTHIA 8.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
 // Author: Christian T Preuss <christian.preuss@monash.edu>
 
-// Keywords: merging; leading order; CKKW-L; hepmc; vincia;
+// Keywords: merging; leading order; CKKW-L; hepmc; vincia
 
 // This is a test program to run Pythia merging and  write HepMC2 files,
 // written for Vincia sector merging, see the Sector Merging page in

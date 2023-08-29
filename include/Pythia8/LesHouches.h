@@ -1,5 +1,5 @@
 // LesHouches.h is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -82,8 +82,9 @@ public:
   // Destructor.
   virtual ~LHAup() {}
 
-  // Set info pointer.
-  void setPtr(Info* infoPtrIn) {infoPtr = infoPtrIn;}
+  // Set pointers.
+  void setPtr(Info* infoPtrIn) {infoPtr = infoPtrIn;
+    loggerPtr = infoPtrIn->loggerPtr;}
 
   // Method to be used for LHAupLHEF derived class.
   virtual void newEventFile(const char*) {}
@@ -215,6 +216,7 @@ protected:
 
   // Pointer to various information on the generation.
   Info* infoPtr;
+  Logger* loggerPtr;
 
   // Input beam info.
   void setBeamA(int idIn, double eIn, int pdfGroupIn = 0, int pdfSetIn = 0)
@@ -349,24 +351,24 @@ public:
   LHAupLHEF(Pythia8::Info* infoPtrIn, istream* isIn, istream* isHeadIn,
     bool readHeadersIn = false, bool setScalesFromLHEFIn = false ) :
     filename(""), headerfile(""),
-    is(isIn), is_gz(NULL), isHead(isHeadIn), isHead_gz(NULL),
+    is(isIn), is_gz(nullptr), isHead(isHeadIn), isHead_gz(nullptr),
     readHeaders(readHeadersIn), reader(is),
     setScalesFromLHEF(setScalesFromLHEFIn), hasExtFileStream(true),
     hasExtHeaderStream(true) {setPtr(infoPtrIn);}
 
   LHAupLHEF(Pythia8::Info* infoPtrIn, const char* filenameIn,
-    const char* headerIn = NULL, bool readHeadersIn = false,
+    const char* headerIn = nullptr, bool readHeadersIn = false,
     bool setScalesFromLHEFIn = false ) :
     filename(filenameIn), headerfile(headerIn),
-    is(NULL), is_gz(NULL), isHead(NULL), isHead_gz(NULL),
+    is(nullptr), is_gz(nullptr), isHead(nullptr), isHead_gz(nullptr),
     readHeaders(readHeadersIn), reader(filenameIn),
     setScalesFromLHEF(setScalesFromLHEFIn), hasExtFileStream(false),
     hasExtHeaderStream(false) {
     setPtr(infoPtrIn);
     is = (openFile(filenameIn, ifs));
-    isHead = (headerfile == NULL) ? is : openFile(headerfile, ifsHead);
+    isHead = (headerfile == nullptr) ? is : openFile(headerfile, ifsHead);
     is_gz = new igzstream(filename);
-    isHead_gz = (headerfile == NULL) ? is_gz : new igzstream(headerfile);
+    isHead_gz = (headerfile == nullptr) ? is_gz : new igzstream(headerfile);
   }
 
   // Destructor.
@@ -477,38 +479,6 @@ private:
 
 //==========================================================================
 
-// A derived class to be loaded as a plugin library.
-class Pythia;
-class LHAupPlugin : public LHAup {
-
-public:
-
-  // Constructor and destructor.
-  LHAupPlugin(string nameIn = "", Pythia *pythiaPtr = nullptr);
-  ~LHAupPlugin();
-
-  // Routine for doing the job of setting initialization info.
-  bool setInit() override {
-    return lhaPtr != nullptr ? lhaPtr->setInit() : false;}
-  // Routine for doing the job of setting info on next event.
-  bool setEvent(int idProcIn = 0) override {
-    return lhaPtr != nullptr ? lhaPtr->setEvent(idProcIn) : false;}
-
-private:
-
-  // Typedefs of the hooks used to access the plugin.
-  typedef LHAup* NewLHAup(Pythia*);
-  typedef void DeleteLHAup(LHAup*);
-
-  // The loaded MEs object, plugin library, and plugin name.
-  LHAup     *lhaPtr;
-  PluginPtr  libPtr;
-  string     name;
-
-};
-
-//==========================================================================
-
 // A derived class with information read from PYTHIA 8 itself, for output.
 
 class LHAupFromPYTHIA8 : public LHAup {
@@ -554,8 +524,8 @@ public:
   LHEF3FromPythia8(Event* eventPtrIn, const Info* infoPtrIn,
     int pDigitsIn = 15, bool writeToFileIn = true) :
     eventPtr(eventPtrIn),infoPtr(infoPtrIn),
-    settingsPtr(infoPtrIn->settingsPtr),
-    particleDataPtr(infoPtrIn->particleDataPtr), writer(osLHEF),
+    particleDataPtr(infoPtrIn->particleDataPtr),
+    settingsPtr(infoPtrIn->settingsPtr), writer(osLHEF),
     pDigits(pDigitsIn), writeToFile(writeToFileIn) {}
 
   // Routine for reading, setting and printing the initialisation info.
@@ -572,7 +542,9 @@ public:
   // Function to close (and possibly update) the output file.
   bool closeLHEF(bool updateInit = false);
 
-private:
+  // Some init and event block objects for convenience.
+  HEPRUP heprup;
+  HEPEUP hepeup;
 
   // Pointer to event that should be printed.
   Event* eventPtr;
@@ -580,9 +552,12 @@ private:
   // Constant info pointer, explicitly overwrites member from LHAup base class.
   const Info* infoPtr;
 
+  ParticleData* particleDataPtr;
+
+private:
+
   // Pointer to settings and info objects.
   Settings* settingsPtr;
-  ParticleData* particleDataPtr;
 
   // LHEF3 writer
   Writer writer;
@@ -590,10 +565,6 @@ private:
   // Number of digits to set width of double write out
   int  pDigits;
   bool writeToFile;
-
-  // Some internal init and event block objects for convenience.
-  HEPRUP heprup;
-  HEPEUP hepeup;
 
 };
 

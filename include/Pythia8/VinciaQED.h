@@ -1,5 +1,5 @@
 // VinciaQED.h is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Peter Skands, Torbjorn Sjostrand.
+// Copyright (C) 2023 Peter Skands, Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -104,8 +104,8 @@ class QEDsystem {
   // Constructor.
   QEDsystem() : infoPtr(nullptr), partonSystemsPtr(nullptr),
     particleDataPtr(nullptr), rndmPtr(nullptr), settingsPtr(nullptr),
-    vinComPtr(nullptr), isInitPtr(false), iSys(-1), verbose(0), jNew(0),
-    shat(0.) {;}
+    loggerPtr(nullptr), vinComPtr(nullptr), isInitPtr(false), iSys(-1),
+    verbose(0), jNew(0), shat(0.) {;}
 
   // Destructor.
   virtual ~QEDsystem() = default;
@@ -147,6 +147,7 @@ class QEDsystem {
   ParticleData* particleDataPtr{};
   Rndm* rndmPtr{};
   Settings* settingsPtr{};
+  Logger* loggerPtr{};
   VinciaCommon* vinComPtr{};
   bool isInitPtr;
 
@@ -509,6 +510,7 @@ public:
   BeamParticle* beamBPtr{};
   Info* infoPtr{};
   ParticleData* particleDataPtr{};
+  Logger* loggerPtr{};
   PartonSystems* partonSystemsPtr{};
   Rndm* rndmPtr{};
   Settings* settingsPtr{};

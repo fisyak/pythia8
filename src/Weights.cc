@@ -1,5 +1,5 @@
 // Weights.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -655,11 +655,10 @@ void WeightsMerging::collectWeightValues(vector<double>& ret, double norm) {
     if (isNLO) {
       // Check if corresponding muR variation is available
       if (muRVarLHEFindex.find(iwt) == muRVarLHEFindex.end()) {
-        string errormsg = "Error in WeightsMerging::collectWeightValues: "
-        "Requested muR variation ";
+        string errormsg = "Requested muR variation ";
         errormsg += std::to_string(getMuRVarFactors()[iwt-1]) +
         " not found in LHE file.";
-        infoPtr->errorMsg(errormsg);
+        infoPtr->loggerPtr->ERROR_MSG(errormsg);
       } else
         value *= infoPtr->weightContainerPtr->weightsLHEF.
           getWeightsValue(muRVarLHEFindex[iwt]);

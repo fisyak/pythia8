@@ -1,5 +1,5 @@
 // Basics.h is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -14,6 +14,7 @@
 #define Pythia8_Basics_H
 
 #include "Pythia8/PythiaStdlib.h"
+#include "Pythia8/SharedPointers.h"
 
 namespace Pythia8 {
 
@@ -269,7 +270,7 @@ public:
   void bstback(const Vec4&);
   void bst(const Vec4&, const Vec4&);
   void toCMframe(const Vec4&, const Vec4&);
-  void fromCMframe(const Vec4&, const Vec4&);
+  void fromCMframe(const Vec4&, const Vec4&, bool flip = false);
   void toSameVframe(const Vec4&, const Vec4&);
   void fromSameVframe(const Vec4&, const Vec4&);
   void rotbst(const RotBstMatrix&);
@@ -324,10 +325,12 @@ inline RotBstMatrix fromCMframe(const Vec4& p) {
 inline RotBstMatrix toCMframe(const Vec4& p1, const Vec4& p2) {
   RotBstMatrix tmp; tmp.toCMframe(p1, p2); return tmp; }
 
-// Get a RotBstMatrix from rest frame of p1 and p2, where p1 is along
-// the z-axis.
-inline RotBstMatrix fromCMframe(const Vec4& p1, const Vec4& p2) {
-  RotBstMatrix tmp; tmp.fromCMframe(p1, p2); return tmp; }
+// Get a RotBstMatrix from rest frame of p1 and p2, where p1 is
+// assumed by default to be along the z-axis. The flip option
+// handles the case when p1 is along the negative z-axis.
+inline RotBstMatrix fromCMframe(const Vec4& p1, const Vec4& p2,
+  bool flip = false) {
+  RotBstMatrix tmp; tmp.fromCMframe(p1, p2, flip); return tmp; }
 
 // Get a RotBstMatrix to rest frame of ptot where pz is along the
 // z-axis and pxz is in the xz-plane with positive x.
@@ -353,9 +356,9 @@ public:
   // Destructor.
   virtual ~RndmEngine() {}
 
-  // A pure virtual method, wherein the derived class method
-  // generates a random number uniformly distributed between 1 and 1.
-  virtual double flat() = 0;
+  // A virtual method, wherein the derived class method
+  // generates a random number uniformly distributed between 0 and 1.
+  virtual double flat() {return 1;}
 
 };
 
@@ -384,13 +387,12 @@ class Rndm {
 public:
 
   // Constructors.
-  Rndm() : initRndm(false), stateSave(), useExternalRndm(false),
-    rndmEngPtr(0) { }
-  Rndm(int seedIn) : initRndm(false), stateSave(), useExternalRndm(false),
-    rndmEngPtr(0) {init(seedIn);}
+  Rndm() : initRndm(false), stateSave(), useExternalRndm(false) { }
+  Rndm(int seedIn) : initRndm(false), stateSave(), useExternalRndm(false) {
+    init(seedIn);}
 
   // Possibility to pass in pointer for external random number generation.
-  bool rndmEnginePtr( RndmEngine* rndmEngPtrIn);
+  bool rndmEnginePtr( RndmEnginePtr rndmEngPtrIn);
 
   // Initialize, normally at construction or in first call.
   void init(int seedIn = 0) ;
@@ -412,11 +414,21 @@ public:
     double phi = 2. * M_PI * flat();
     return { r * sin(phi), r * cos(phi) };}
 
+  // Generate a random number according to a Gamma-distribution.
+  double gamma(double k0, double r0);
+
   // Generate two random vectors according to the phase space distribution
   pair<Vec4, Vec4> phaseSpace2(double eCM, double m1, double m2);
 
   // Pick one option among  vector of (positive) probabilities.
   int pick(const vector<double>& prob) ;
+
+  // Randomly shuffle a vector, standard Fisher-Yates algorithm.
+  template<typename T>
+  void shuffle(vector<T>& vec) {
+    for (int i = vec.size() - 1; i > 0; --i)
+      swap(vec[i], vec[floor(flat() * (i + 1))]);
+  }
 
   // Save or read current state to or from a binary file.
   bool dumpState(string fileName);
@@ -437,7 +449,7 @@ private:
 
   // Pointer for external random number generation.
   bool   useExternalRndm;
-  RndmEngine* rndmEngPtr;
+  RndmEnginePtr rndmEngPtr{};
 
 };
 
@@ -535,11 +547,13 @@ public:
   // Return min and max in x and y directions.
   double getXMin() const {return xMin;}
   double getXMax() const {return xMax;}
-  double getYMin() const { double yMin = res[0];
+  double getYMin() const { if (nBin == 0) return 0.;
+    double yMin = res[0];
     for (int ix = 1; ix < nBin; ++ix)
       if (res[ix] < yMin ) yMin = res[ix];
     return yMin;}
-  double getYMax() const {double yMax = res[0];
+  double getYMax() const { if (nBin == 0) return 0.;
+    double yMax = res[0];
     for (int ix = 1; ix < nBin; ++ix)
       if (res[ix] > yMax ) yMax = res[ix];
     return yMax;}
@@ -732,7 +746,12 @@ public:
 
   // Add a histogram to the current plot, with optional style and legend.
   void add( const Hist& histIn, string styleIn = "h",
-    string legendIn = "void") { histos.push_back(histIn);
+    string legendIn = "void") {
+    if (histIn.getBinNumber() == 0) {
+      cout << " Error: histogram is not booked" << endl;
+      return;
+    }
+    histos.push_back(histIn);
     styles.push_back(styleIn); legends.push_back(legendIn); }
 
   // Add a file of (x, y) values not from a histogram, e.g. data points.

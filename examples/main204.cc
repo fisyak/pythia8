@@ -1,18 +1,18 @@
 // main201.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
+
+// Authors: Marius Utheim <marius.r.utheim@jyu.fi>
+//          Peter Skands <peter.skands@monash.edu>
+
+// Keywords: Vincia; Dire; parallelism
 
 // This is a simple test program to compare Pythia and Vincia on
 // inclusive jet rates at the LHC, for a sample with pThat > 100 GeV.
 // This program is equivalent to main201, but uses the built-in parallelism
 // framework to generate events in parallel, instead of running two Pythia
 // instances in parallel with OpenMP.
-
-// Authors: Marius Utheim <marius.r.utheim@jyu.fi>,
-//          Peter Skands <peter.skands@monash.edu>
-
-// Keywords: Vincia; Dire; parallelism;
 
 #include "Pythia8/Pythia.h"
 #include "Pythia8/PythiaParallel.h"
@@ -58,7 +58,7 @@ int main() {
       // Switch to VINCIA shower model
       pythia.readString("PartonShowers:Model = 2");
       // Output in parallel is not possible.
-      pythia.readString("Vincia:verbose = -1");
+      pythia.readString("Print:verbosity = 0");
     }
     // Initialise generator for this run
     if(!pythia.init()) {continue;}
@@ -90,14 +90,14 @@ int main() {
     // Begin event loop.
     double sumWeights = 0.;
     int iEvent = 0;
-    pythia.run(nEvent, [&](Pythia& pythiaNow) {
+    pythia.run(nEvent, [&](Pythia* pythiaPtr) {
 
       // Check for weights
-      double weight = pythiaNow.info.weight();
+      double weight = pythiaPtr->info.weight();
       sumWeights += weight;
 
       // Analyze Slowet jet properties. List first few.
-      slowJet. analyze( pythiaNow.event );
+      slowJet. analyze( pythiaPtr->event );
 
       iEvent += 1;
       if (iEvent < nListJets) {

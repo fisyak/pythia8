@@ -1,15 +1,15 @@
 // main95.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
+
+// Authors: Dag Gillberg <dag.gillberg@cern.ch>
+
+// Keywords: root; jets; event display
 
 // This is a program to use ROOT to visualize different jet algoritms.
 // The produced figure is used in the article "50 years of Quantum
 // Chromodynamics" in celebration of the 50th anniversary of QCD (EPJC).
-
-// Author: Dag Gillberg <dag.gillberg@cern.ch>
-
-// Keywords: root; jets; event display;
 
 #include "Pythia8/Pythia.h"
 #include "TCanvas.h"

@@ -1,5 +1,5 @@
 // Basics.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -24,10 +24,10 @@ namespace Pythia8 {
 
 // Method to pass in pointer for external random number generation.
 
-bool Rndm::rndmEnginePtr( RndmEngine* rndmEngPtrIn) {
+bool Rndm::rndmEnginePtr( RndmEnginePtr rndmEngPtrIn) {
 
   // Save pointer.
-  if (rndmEngPtrIn == 0) return false;
+  if (rndmEngPtrIn == nullptr) return false;
   rndmEngPtr      = rndmEngPtrIn;
   useExternalRndm = true;
 
@@ -116,6 +116,36 @@ double Rndm::flat() {
    } while (uni <= 0. || uni >= 1.);
   return uni;
 
+}
+
+//--------------------------------------------------------------------------
+
+// Generate a random number according to a Gamma-distribution.
+
+double Rndm::gamma(double k0, double r0) {
+  int k = int(k0);
+
+  double x = 0.0;
+  for ( int i = 0; i < k; ++i ) x += -log(flat());
+
+  double del = k0 - k;
+  if ( del == 0.0 ) return x*r0;
+
+  while ( true ) {
+    double U = flat();
+    double V = flat();
+    double W = flat();
+
+    double xi = 0.0;
+    if ( U <= M_E / (M_E + del) ) {
+      xi = pow(V, 1.0/del);
+      if ( W <= std::exp(-xi) ) return r0*(x + xi);
+    } else {
+      xi = 1.0 - log(V);
+      if ( W <= pow(xi, del - 1.0) ) return r0*(x + xi);
+    }
+  }
+  return 0.0;
 }
 
 //--------------------------------------------------------------------------
@@ -833,16 +863,22 @@ void RotBstMatrix::toCMframe(const Vec4& p1, const Vec4& p2) {
 //--------------------------------------------------------------------------
 
 // Rotation and boost that transforms from rest frame of p1 and p2
-// with p1 along +z axis to actual frame of p1 and p2. (Inverse of above.)
+// with p1 by default along +z axis to actual frame of p1 and p2. (Inverse of
+// above.) The option flip handles the case when p1 is along the -z axis in
+// the rest frame. This is accomplished by performing the rotation for
+// p2 and negating the rotational part.
 
-void RotBstMatrix::fromCMframe(const Vec4& p1, const Vec4& p2) {
+void RotBstMatrix::fromCMframe(const Vec4& p1, const Vec4& p2, bool flip) {
   Vec4 pSum = p1 + p2;
-  Vec4 dir  = p1;
+  Vec4 dir  = (flip) ? p2 : p1;
   dir.bstback(pSum);
   double theta = dir.theta();
   double phi   = dir.phi();
   rot(0., -phi);
   rot(theta, phi);
+  if (flip)
+    for (int i = 1; i <= 3; ++i)
+      for (int j = 1; j <= 3; ++j) M[i][j] *= -1;
   bst(pSum);
 }
 
@@ -1523,14 +1559,13 @@ double Hist::getXMedian(bool includeOverUnder) const {
     if (abs(under) > 0.5 * wtSumTot) return xMin;
     else if (abs(over) > 0.5 * wtSumTot) return xMax;
   }
-  double xmedian  = xMin;
   for (int ix = 0; ix < nBin ; ++ix) {
     double wtSumOld = wtSumNow;
     wtSumNow += abs(res[ix]);
     if (wtSumNow > 0.5 * wtSumTot) {
       double frac = (0.5*wtSumTot - wtSumOld)/(wtSumNow - wtSumOld);
-      return xmedian = (linX) ? xMin + (ix + frac) * dx
-        : xMin * pow( 10., (ix + frac) * dx);
+      return (linX) ? xMin + (ix + frac) * dx
+                    : xMin * pow( 10., (ix + frac) * dx);
     }
   }
   // Should not arrive here. Safe return in any case.

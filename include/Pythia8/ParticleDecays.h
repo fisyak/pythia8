@@ -1,5 +1,5 @@
 // ParticleDecays.h is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -44,6 +44,9 @@ public:
   // Usage: decay( idProd, motherProd, mProd, pProd, iDec, event).
   virtual bool chainDecay(vector<int>& , vector<int>& , vector<double>& ,
     vector<Vec4>& , int , const Event& ) {return false;}
+
+  // A virtual method, to return the particles the handler should decay.
+  virtual vector<int> handledParticles() {return {};}
 
 };
 

@@ -1,5 +1,5 @@
 // LesHouches.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -134,8 +134,7 @@ bool LHAup::openLHEF(string fileNameIn) {
   const char* cstring = fileName.c_str();
   osLHEF.open(cstring, ios::out | ios::trunc);
   if (!osLHEF) {
-    infoPtr->errorMsg("Error in LHAup::openLHEF:"
-      " could not open file", fileName);
+    loggerPtr->ERROR_MSG("could not open file", fileName);
     return false;
   }
 
@@ -434,8 +433,7 @@ bool LHAup::setInitLHEF(istream& is, bool readHeaders) {
               // Also check for forgotten close tag: next-to-last element
             } else if (keyVec.size() >= 2
                        && tag == "/" + keyVec[keyVec.size()-2]) {
-              infoPtr->errorMsg("Warning in LHAup::setInitLHEF:"
-                                " corrupt LHEF end tag",keyVec.back());
+              loggerPtr->WARNING_MSG("corrupt LHEF end tag",keyVec.back());
               keyVec.pop_back();
               keyVec.pop_back();
               newKey = true;
@@ -662,7 +660,7 @@ void LHAup::closeFile(istream *&is, ifstream &ifs) {
   // If the istream pointer is not NULL and is not the
   // same as the ifstream, then delete pointer.
   if (is && is != &ifs) delete is;
-  is = NULL;
+  is = nullptr;
 
   // Close the file
   if (ifs.is_open()) ifs.close();
@@ -692,7 +690,7 @@ bool LHAupLHEF::setInitLHEF( istream & isIn, bool readHead ) {
   comments+=reader.initComments;
   comments+="</init>\n";
   istringstream is1(comments);
-  bool useComments = (headerfile == NULL);
+  bool useComments = (headerfile == nullptr);
   istream & iss((useComments ? is1 : isIn));
 
   // Check that first line is consistent with proper LHEF file.
@@ -838,8 +836,7 @@ bool LHAupLHEF::setInitLHEF( istream & isIn, bool readHead ) {
               // Also check for forgotten close tag: next-to-last element
             } else if (keyVec.size() >= 2
                        && tag == "/" + keyVec[keyVec.size()-2]) {
-              infoPtr->errorMsg("Warning in LHAupLHEF::setInitLHEF:"
-                                " corrupt LHEF end tag",keyVec.back());
+              loggerPtr->WARNING_MSG("corrupt LHEF end tag",keyVec.back());
               keyVec.pop_back();
               keyVec.pop_back();
               newKey = true;
@@ -1025,18 +1022,49 @@ bool LHAupLHEF::setNewEventLHEF() {
 
   // Set production scales from <scales> tag.
   if ( setScalesFromLHEF && reader.version > 1 ){
+    // Reset scalup, to avoid using a too strict constraint
+    // on emissions when multiple scales are present.
+    double scaleMax = -1.;
     for ( map<string,double>::const_iterator
       it  = reader.hepeup.scalesSave.attributes.begin();
       it != reader.hepeup.scalesSave.attributes.end(); ++it ) {
       if ( it->first.find_last_of("_") != string::npos) {
-        unsigned iFound = it->first.find_last_of("_") + 1;
-        int iPos = atoi(it->first.substr(iFound).c_str());
-        // Only set production scales of final particles.
+        // Find the particle for which this scale applies.
+        string nameScale = it->first;
+        vector <string> pieces;
+        vector <int> ipieces;
+        do {
+          unsigned end = (nameScale.find_first_of("_",0)!=string::npos) ?
+            nameScale.find_first_of("_",0) : nameScale.size();
+          pieces.push_back( nameScale.substr(0,end) );
+          ipieces.push_back(atoi(pieces.back().c_str()));
+          if (end < nameScale.size())
+            nameScale=nameScale.substr(end+1,nameScale.size());
+          else
+            nameScale="";
+        } while (nameScale.size() > 0);
+        int iPos = 0;
+        if (ipieces.size()>2 && ipieces[ipieces.size()-2] > 0)
+          iPos = ipieces[ipieces.size()-2];
+        else if (ipieces.size()>1 && ipieces[ipieces.size()-1] > 0)
+          iPos = ipieces[ipieces.size()-1];
+
+        // Set production scales of final *and initial* particles to the
+        // minimal input scale found for the particle.
         if ( iPos < int(particlesSave.size())
-          && particlesSave[iPos].statusPart == 1)
-          particlesSave[iPos].scalePart = it->second;
+          && abs(particlesSave[iPos].statusPart) == 1) {
+          if (it->second > 0.) {
+            if (particlesSave[iPos].scalePart<=0.)
+              particlesSave[iPos].scalePart = it->second;
+            else
+              particlesSave[iPos].scalePart
+                = min(particlesSave[iPos].scalePart,it->second);
+          }
+          scaleMax = max(scaleMax,particlesSave[iPos].scalePart);
+        }
       }
     }
+    scalupSave  = scaleMax;
   }
 
   // Need id and x values even when no PDF info. Rest empty.
@@ -1068,44 +1096,6 @@ bool LHAupLHEF::setNewEventLHEF() {
 
   // Reading worked.
   return true;
-
-}
-
-//==========================================================================
-
-// LHAupPlugin class.
-
-//--------------------------------------------------------------------------
-
-// Constructor.
-
-LHAupPlugin::LHAupPlugin(string nameIn, Pythia *pythiaPtr) :
-  LHAup(), lhaPtr(nullptr), libPtr(nullptr), name(nameIn) {
-
-  // Load the plugin library if needed.
-  if (infoPtr != nullptr)
-    libPtr = const_cast<Info&>(pythiaPtr->info).plugin(name);
-  else libPtr = make_shared<Plugin>(name);
-  if (!libPtr->isLoaded()) return;
-
-  // Create a new LHAup.
-  NewLHAup* newLHAup = (NewLHAup*)libPtr->symbol("newLHAup");
-  if (!newLHAup) return;
-  lhaPtr = newLHAup(pythiaPtr);
-
-}
-
-//--------------------------------------------------------------------------
-
-// Destructor.
-
-LHAupPlugin::~LHAupPlugin() {
-
-  // Delete the LHAup pointer.
-  if (lhaPtr == nullptr || !libPtr->isLoaded()) return;
-  DeleteLHAup* deleteLHAup =
-    (DeleteLHAup*)libPtr->symbol("deleteLHAup");
-  if (deleteLHAup) deleteLHAup(lhaPtr);
 
 }
 

@@ -1,5 +1,5 @@
 // SusyResonanceWidths.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand
+// Copyright (C) 2023 Torbjorn Sjostrand
 // Authors: N. Desai, P. Skands
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
@@ -56,10 +56,9 @@ bool SUSYResonanceWidths::allowCalc(){
 
   // Else we should do the calculation; set available channels
   bool done = getChannels(idRes);
-  stringstream idStream;
-  idStream << "ID = " << idRes ;
-  if (!done)  infoPtr->errorMsg("Error in SusyResonanceWidths::allowcalc: "
-    "unable to reset decay table.", idStream.str(), true);
+  if (!done)
+    loggerPtr->ERROR_MSG("unable to reset decay table",
+      "ID = " + to_string(idRes), true);
   return done;
 }
 

@@ -1,11 +1,11 @@
 // main46.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
 // Author: Christian T Preuss <christian.preuss@monash.edu>
 
-// Keywords: HDF5 file; lheh5; hepmc;
+// Keywords: HDF5 file; lheh5; hepmc
 
 // This program (main46.cc) illustrates how a HDF5 event file can be
 // used by Pythia8. See main44.cc and main45.cc for how to use LHE

@@ -1,5 +1,5 @@
 # Makefile is a part of the PYTHIA event generator.
-# Copyright (C) 2022 Torbjorn Sjostrand.
+# Copyright (C) 2023 Torbjorn Sjostrand.
 # PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 # Please respect the MCnet Guidelines, see GUIDELINES for details.
 # Author: Philip Ilten, October 2019.
@@ -37,7 +37,7 @@ OBJECTS=$(addprefix $(LOCAL_TMP)/,$(patsubst %.cc,%.o,$(wildcard */*.cc)))
 TARGETS=$(patsubst %/,$(TOP_LIB)/libpythia8mg5%.so,$(LOCAL_DIRS))
 
 ################################################################################
-# RULES: Definition of the rules used to build the Python interface.
+# RULES: Definition of the rules used to build the MG5 ME interface.
 ################################################################################
 
 # Rules without physical targets.

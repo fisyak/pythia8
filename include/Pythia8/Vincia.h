@@ -1,5 +1,5 @@
 // Vincia.h is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Peter Skands, Torbjorn Sjostrand.
+// Copyright (C) 2023 Peter Skands, Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -74,7 +74,7 @@ public:
 
   // End-of-run statistics.
   void onStat() override {
-    if (verbose >= VinciaConstants::REPORT) diagnosticsPtr->print(); }
+    if (verbose >= Logger::REPORT) diagnosticsPtr->print(); }
 
   // Automatically set verbose level in all members.
   void setVerbose(int verboseIn);
@@ -90,7 +90,7 @@ public:
   MECs                  mecs{};
 
   // Auxiliary objects.
-  ExternalMEsPlugin     mg5mes{};
+  ExternalMEsPtr        mg5mes{};
   Rambo                 rambo{};
 
   // Vectors of antenna functions.

@@ -1,5 +1,6 @@
 #include <Pythia8/Basics.h>
 #include <Pythia8/BeamParticle.h>
+#include <Pythia8/BeamSetup.h>
 #include <Pythia8/Event.h>
 #include <Pythia8/FragmentationFlavZpT.h>
 #include <Pythia8/FragmentationSystems.h>
@@ -11,6 +12,7 @@
 #include <Pythia8/JunctionSplitting.h>
 #include <Pythia8/LHEF3.h>
 #include <Pythia8/LesHouches.h>
+#include <Pythia8/Logger.h>
 #include <Pythia8/LowEnergyProcess.h>
 #include <Pythia8/MergingHooks.h>
 #include <Pythia8/MiniStringFragmentation.h>
@@ -53,11 +55,11 @@
 #include <functional>
 #include <string>
 #include <Pythia8/UserHooks.h>
-#include <Pythia8/HIUserHooks.h>
 #include <Pythia8/HeavyIons.h>
 #include <Pythia8/BeamShape.h>
 #include <pybind11/stl.h>
 #include <pybind11/complex.h>
+#include <pybind11/functional.h>
 
 
 #ifndef BINDER_PYBIND11_TYPE_CASTER
@@ -77,7 +79,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -90,7 +92,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -103,7 +105,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -116,7 +118,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<double>::value) {
-				static pybind11::detail::overload_caster_t<double> caster;
+				static pybind11::detail::override_caster_t<double> caster;
 				return pybind11::detail::cast_ref<double>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<double>(std::move(o));
@@ -129,7 +131,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -142,12 +144,38 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
 		}
 		return UserHooks::doVetoProcessLevel(a0);
+	}
+	bool canSetLowEnergySigma(int a0, int a1) const override { 
+		pybind11::gil_scoped_acquire gil;
+		pybind11::function overload = pybind11::get_overload(static_cast<const Pythia8::UserHooks *>(this), "canSetLowEnergySigma");
+		if (overload) {
+			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1);
+			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
+				static pybind11::detail::override_caster_t<bool> caster;
+				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
+			}
+			else return pybind11::detail::cast_safe<bool>(std::move(o));
+		}
+		return UserHooks::canSetLowEnergySigma(a0, a1);
+	}
+	double doSetLowEnergySigma(int a0, int a1, double a2, double a3, double a4) const override { 
+		pybind11::gil_scoped_acquire gil;
+		pybind11::function overload = pybind11::get_overload(static_cast<const Pythia8::UserHooks *>(this), "doSetLowEnergySigma");
+		if (overload) {
+			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1, a2, a3, a4);
+			if (pybind11::detail::cast_is_temporary_value_reference<double>::value) {
+				static pybind11::detail::override_caster_t<double> caster;
+				return pybind11::detail::cast_ref<double>(std::move(o), caster);
+			}
+			else return pybind11::detail::cast_safe<double>(std::move(o));
+		}
+		return UserHooks::doSetLowEnergySigma(a0, a1, a2, a3, a4);
 	}
 	bool canVetoResonanceDecays() override { 
 		pybind11::gil_scoped_acquire gil;
@@ -155,7 +183,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -168,7 +196,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -181,7 +209,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -194,7 +222,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<double>::value) {
-				static pybind11::detail::overload_caster_t<double> caster;
+				static pybind11::detail::override_caster_t<double> caster;
 				return pybind11::detail::cast_ref<double>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<double>(std::move(o));
@@ -207,7 +235,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -220,7 +248,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -233,7 +261,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<int>::value) {
-				static pybind11::detail::overload_caster_t<int> caster;
+				static pybind11::detail::override_caster_t<int> caster;
 				return pybind11::detail::cast_ref<int>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<int>(std::move(o));
@@ -246,7 +274,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1, a2, a3);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -259,7 +287,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -272,7 +300,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<int>::value) {
-				static pybind11::detail::overload_caster_t<int> caster;
+				static pybind11::detail::override_caster_t<int> caster;
 				return pybind11::detail::cast_ref<int>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<int>(std::move(o));
@@ -285,7 +313,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -298,7 +326,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -311,7 +339,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -324,7 +352,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -337,7 +365,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -350,7 +378,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -363,7 +391,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -376,7 +404,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1);
 			if (pybind11::detail::cast_is_temporary_value_reference<double>::value) {
-				static pybind11::detail::overload_caster_t<double> caster;
+				static pybind11::detail::override_caster_t<double> caster;
 				return pybind11::detail::cast_ref<double>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<double>(std::move(o));
@@ -389,7 +417,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -402,7 +430,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1, a2);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -415,7 +443,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -428,7 +456,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1, a2, a3);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -441,7 +469,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -454,7 +482,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -467,7 +495,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -480,7 +508,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -493,7 +521,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -506,7 +534,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -519,7 +547,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -532,7 +560,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -545,7 +573,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<double>::value) {
-				static pybind11::detail::overload_caster_t<double> caster;
+				static pybind11::detail::override_caster_t<double> caster;
 				return pybind11::detail::cast_ref<double>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<double>(std::move(o));
@@ -558,7 +586,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -571,7 +599,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -584,7 +612,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0);
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -597,7 +625,7 @@ struct PyCallBack_Pythia8_UserHooks : public Pythia8::UserHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -616,7 +644,7 @@ struct PyCallBack_Pythia8_PartonVertex : public Pythia8::PartonVertex {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -629,7 +657,7 @@ struct PyCallBack_Pythia8_PartonVertex : public Pythia8::PartonVertex {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1, a2, a3);
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -642,7 +670,7 @@ struct PyCallBack_Pythia8_PartonVertex : public Pythia8::PartonVertex {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1, a2, a3);
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -655,7 +683,7 @@ struct PyCallBack_Pythia8_PartonVertex : public Pythia8::PartonVertex {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1);
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -668,7 +696,7 @@ struct PyCallBack_Pythia8_PartonVertex : public Pythia8::PartonVertex {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1);
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -681,7 +709,7 @@ struct PyCallBack_Pythia8_PartonVertex : public Pythia8::PartonVertex {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1);
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -694,7 +722,7 @@ struct PyCallBack_Pythia8_PartonVertex : public Pythia8::PartonVertex {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -707,7 +735,7 @@ struct PyCallBack_Pythia8_PartonVertex : public Pythia8::PartonVertex {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -720,7 +748,7 @@ struct PyCallBack_Pythia8_PartonVertex : public Pythia8::PartonVertex {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0);
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -733,7 +761,7 @@ struct PyCallBack_Pythia8_PartonVertex : public Pythia8::PartonVertex {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -752,7 +780,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0);
 			if (pybind11::detail::cast_is_temporary_value_reference<double>::value) {
-				static pybind11::detail::overload_caster_t<double> caster;
+				static pybind11::detail::override_caster_t<double> caster;
 				return pybind11::detail::cast_ref<double>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<double>(std::move(o));
@@ -765,7 +793,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0);
 			if (pybind11::detail::cast_is_temporary_value_reference<double>::value) {
-				static pybind11::detail::overload_caster_t<double> caster;
+				static pybind11::detail::override_caster_t<double> caster;
 				return pybind11::detail::cast_ref<double>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<double>(std::move(o));
@@ -778,7 +806,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -791,7 +819,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -804,7 +832,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -817,7 +845,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -830,7 +858,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0);
 			if (pybind11::detail::cast_is_temporary_value_reference<double>::value) {
-				static pybind11::detail::overload_caster_t<double> caster;
+				static pybind11::detail::override_caster_t<double> caster;
 				return pybind11::detail::cast_ref<double>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<double>(std::move(o));
@@ -843,7 +871,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -856,7 +884,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1);
 			if (pybind11::detail::cast_is_temporary_value_reference<int>::value) {
-				static pybind11::detail::overload_caster_t<int> caster;
+				static pybind11::detail::override_caster_t<int> caster;
 				return pybind11::detail::cast_ref<int>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<int>(std::move(o));
@@ -869,7 +897,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0);
 			if (pybind11::detail::cast_is_temporary_value_reference<double>::value) {
-				static pybind11::detail::overload_caster_t<double> caster;
+				static pybind11::detail::override_caster_t<double> caster;
 				return pybind11::detail::cast_ref<double>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<double>(std::move(o));
@@ -882,7 +910,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -895,7 +923,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -908,7 +936,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -921,7 +949,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -934,7 +962,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -947,7 +975,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1, a2);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -960,7 +988,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
 			if (pybind11::detail::cast_is_temporary_value_reference<bool>::value) {
-				static pybind11::detail::overload_caster_t<bool> caster;
+				static pybind11::detail::override_caster_t<bool> caster;
 				return pybind11::detail::cast_ref<bool>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<bool>(std::move(o));
@@ -973,7 +1001,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -986,7 +1014,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -999,7 +1027,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>(a0);
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -1012,7 +1040,7 @@ struct PyCallBack_Pythia8_MergingHooks : public Pythia8::MergingHooks {
 		if (overload) {
 			auto o = overload.operator()<pybind11::return_value_policy::reference>();
 			if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
-				static pybind11::detail::overload_caster_t<void> caster;
+				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
 			else return pybind11::detail::cast_safe<void>(std::move(o));
@@ -1041,6 +1069,8 @@ void bind_Pythia8_UserHooks(std::function< pybind11::module &(std::string const 
 		cl.def("biasedSelectionWeight", (double (Pythia8::UserHooks::*)()) &Pythia8::UserHooks::biasedSelectionWeight, "C++: Pythia8::UserHooks::biasedSelectionWeight() --> double");
 		cl.def("canVetoProcessLevel", (bool (Pythia8::UserHooks::*)()) &Pythia8::UserHooks::canVetoProcessLevel, "C++: Pythia8::UserHooks::canVetoProcessLevel() --> bool");
 		cl.def("doVetoProcessLevel", (bool (Pythia8::UserHooks::*)(class Pythia8::Event &)) &Pythia8::UserHooks::doVetoProcessLevel, "C++: Pythia8::UserHooks::doVetoProcessLevel(class Pythia8::Event &) --> bool", pybind11::arg(""));
+		cl.def("canSetLowEnergySigma", (bool (Pythia8::UserHooks::*)(int, int) const) &Pythia8::UserHooks::canSetLowEnergySigma, "C++: Pythia8::UserHooks::canSetLowEnergySigma(int, int) const --> bool", pybind11::arg(""), pybind11::arg(""));
+		cl.def("doSetLowEnergySigma", (double (Pythia8::UserHooks::*)(int, int, double, double, double) const) &Pythia8::UserHooks::doSetLowEnergySigma, "C++: Pythia8::UserHooks::doSetLowEnergySigma(int, int, double, double, double) const --> double", pybind11::arg(""), pybind11::arg(""), pybind11::arg(""), pybind11::arg(""), pybind11::arg(""));
 		cl.def("canVetoResonanceDecays", (bool (Pythia8::UserHooks::*)()) &Pythia8::UserHooks::canVetoResonanceDecays, "C++: Pythia8::UserHooks::canVetoResonanceDecays() --> bool");
 		cl.def("doVetoResonanceDecays", (bool (Pythia8::UserHooks::*)(class Pythia8::Event &)) &Pythia8::UserHooks::doVetoResonanceDecays, "C++: Pythia8::UserHooks::doVetoResonanceDecays(class Pythia8::Event &) --> bool", pybind11::arg(""));
 		cl.def("canVetoPT", (bool (Pythia8::UserHooks::*)()) &Pythia8::UserHooks::canVetoPT, "C++: Pythia8::UserHooks::canVetoPT() --> bool");
@@ -1097,7 +1127,7 @@ void bind_Pythia8_UserHooks(std::function< pybind11::module &(std::string const 
 		pybind11::class_<Pythia8::MergingHooks, std::shared_ptr<Pythia8::MergingHooks>, PyCallBack_Pythia8_MergingHooks> cl(M("Pythia8"), "MergingHooks", "");
 		pybind11::handle cl_type = cl;
 
-		{ // Pythia8::MergingHooks::IndividualWeights file:Pythia8/MergingHooks.h line:592
+		{ // Pythia8::MergingHooks::IndividualWeights file:Pythia8/MergingHooks.h line:602
 			auto & enclosing_class = cl;
 			pybind11::class_<Pythia8::MergingHooks::IndividualWeights, std::shared_ptr<Pythia8::MergingHooks::IndividualWeights>> cl(enclosing_class, "IndividualWeights", "");
 			pybind11::handle cl_type = cl;
@@ -1151,6 +1181,8 @@ void bind_Pythia8_UserHooks(std::function< pybind11::module &(std::string const 
 		cl.def_readwrite("herwigAcollISRSave", &Pythia8::MergingHooks::herwigAcollISRSave);
 		cl.def_readwrite("pT0ISRSave", &Pythia8::MergingHooks::pT0ISRSave);
 		cl.def_readwrite("pTcutSave", &Pythia8::MergingHooks::pTcutSave);
+		cl.def_readwrite("pTminISRSave", &Pythia8::MergingHooks::pTminISRSave);
+		cl.def_readwrite("pTminFSRSave", &Pythia8::MergingHooks::pTminFSRSave);
 		cl.def_readwrite("doNL3TreeSave", &Pythia8::MergingHooks::doNL3TreeSave);
 		cl.def_readwrite("doNL3LoopSave", &Pythia8::MergingHooks::doNL3LoopSave);
 		cl.def_readwrite("doNL3SubtSave", &Pythia8::MergingHooks::doNL3SubtSave);
@@ -1161,6 +1193,7 @@ void bind_Pythia8_UserHooks(std::function< pybind11::module &(std::string const 
 		cl.def_readwrite("doUMEPSTreeSave", &Pythia8::MergingHooks::doUMEPSTreeSave);
 		cl.def_readwrite("doUMEPSSubtSave", &Pythia8::MergingHooks::doUMEPSSubtSave);
 		cl.def_readwrite("doEstimateXSection", &Pythia8::MergingHooks::doEstimateXSection);
+		cl.def_readwrite("doRuntimeAMCATNLOInterfaceSave", &Pythia8::MergingHooks::doRuntimeAMCATNLOInterfaceSave);
 		cl.def_readwrite("applyVeto", &Pythia8::MergingHooks::applyVeto);
 		cl.def_readwrite("inputEvent", &Pythia8::MergingHooks::inputEvent);
 		cl.def_readwrite("resonances", &Pythia8::MergingHooks::resonances);
@@ -1248,6 +1281,7 @@ void bind_Pythia8_UserHooks(std::function< pybind11::module &(std::string const 
 		cl.def("doUNLOPSSubt", (bool (Pythia8::MergingHooks::*)()) &Pythia8::MergingHooks::doUNLOPSSubt, "C++: Pythia8::MergingHooks::doUNLOPSSubt() --> bool");
 		cl.def("doUNLOPSSubtNLO", (bool (Pythia8::MergingHooks::*)()) &Pythia8::MergingHooks::doUNLOPSSubtNLO, "C++: Pythia8::MergingHooks::doUNLOPSSubtNLO() --> bool");
 		cl.def("doUNLOPSMerging", (bool (Pythia8::MergingHooks::*)()) &Pythia8::MergingHooks::doUNLOPSMerging, "C++: Pythia8::MergingHooks::doUNLOPSMerging() --> bool");
+		cl.def("doRuntimeAMCATNLOInterface", (bool (Pythia8::MergingHooks::*)()) &Pythia8::MergingHooks::doRuntimeAMCATNLOInterface, "C++: Pythia8::MergingHooks::doRuntimeAMCATNLOInterface() --> bool");
 		cl.def("nRecluster", (int (Pythia8::MergingHooks::*)()) &Pythia8::MergingHooks::nRecluster, "C++: Pythia8::MergingHooks::nRecluster() --> int");
 		cl.def("nRequested", (int (Pythia8::MergingHooks::*)()) &Pythia8::MergingHooks::nRequested, "C++: Pythia8::MergingHooks::nRequested() --> int");
 		cl.def("isFirstEmission", (bool (Pythia8::MergingHooks::*)(const class Pythia8::Event &)) &Pythia8::MergingHooks::isFirstEmission, "C++: Pythia8::MergingHooks::isFirstEmission(const class Pythia8::Event &) --> bool", pybind11::arg("event"));

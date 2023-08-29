@@ -1,15 +1,15 @@
 // main300.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
-
-// The following functions analyze a scattering event and save the event in
-// an output format that can be converted into a postscript figure using the
-// "graphviz" program.
 
 // Authors: Nadine Fischer
 
 // Keywords: Dire; Vincia; hepmc; OpenMP; command file; command line option
+
+// The following functions analyze a scattering event and save the event in
+// an output format that can be converted into a postscript figure using the
+// "graphviz" program.
 
 // Pythia includes.
 #include "Pythia8/Pythia.h"

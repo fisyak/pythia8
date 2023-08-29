@@ -1,11 +1,11 @@
 // main333.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
-// Authors: Christian Bierlich <christian.bierlich@thep.lu.se>.
+// Authors: Christian Bierlich <christian.bierlich@hep.lu.se>
 
-// Keywords: userhooks; performance; jets; hadronic rescattering;
+// Keywords: userhooks; performance; jets; hadronic rescattering
 
 // This main program illustrates the use of UserHooks to veto events
 // after hadronization, but before any subsequent processes such as
@@ -33,7 +33,7 @@ public:
         return false;
     }
     // This info message will be printed in the stat summary.
-    infoPtr->errorMsg("Info: Event vetoed by HadronUserHooks");
+    loggerPtr->INFO_MSG("event vetoed by HadronUserHooks");
     // If no trigger particle is found, veto the event.
     return true;
   }

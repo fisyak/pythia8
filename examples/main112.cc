@@ -1,12 +1,12 @@
 // main112.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
-// Authors: Leif Lonnblad <leif.lonnblad@thep.lu.se>.
+// Authors: Leif Lonnblad <leif.lonnblad@hep.lu.se>
 
 // Keywords: heavy ions; charged multiplicity; analysis; proton-ion;
-// centrality; angantyr;
+//           centrality; angantyr
 
 // This test program will generate p-Pb collisions at sqrt(S_NN)=5TeV
 // using Angantyr model for Heavy Ion collisions. The analysis will
@@ -151,7 +151,7 @@ int main() {
   }
 
   // The run is over, so we write out some statistics.
-
+  pythia.stat();
 
   // Now, we just have to normalize and prtint out the histograms. We
   // choose to print the histograms to a file that can be read by

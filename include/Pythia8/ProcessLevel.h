@@ -1,5 +1,5 @@
 // ProcessLevel.h is a part of the PYTHIA event generator.
-// Copyright (C) 2022 Torbjorn Sjostrand.
+// Copyright (C) 2023 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -45,7 +45,7 @@ public:
 
   // Initialization.
   bool init(bool doLHAin, SLHAinterface* slhaInterfacePtrIn,
-    vector<SigmaProcess*>& sigmaPtrs, vector<PhaseSpace*>& phaseSpacePtrs);
+    vector<SigmaProcessPtr>& sigmaPtrs, vector<PhaseSpacePtr>& phaseSpacePtrs);
 
   // Store or replace Les Houches pointer.
   void setLHAPtr( LHAupPtr lhaUpPtrIn) {lhaUpPtr = lhaUpPtrIn;
