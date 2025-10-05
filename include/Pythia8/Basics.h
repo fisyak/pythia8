@@ -1,5 +1,5 @@
 // Basics.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -106,6 +106,7 @@ public:
   void bstback(const Vec4& pIn);
   void bstback(const Vec4& pIn, double mIn);
   void rotbst(const RotBstMatrix& M);
+  double eInFrame(const Vec4& pIn) const;
 
   // Operator overloading with member functions
   inline Vec4 operator-() const {Vec4 tmp; tmp.xx = -xx; tmp.yy = -yy;
@@ -160,9 +161,10 @@ public:
   // Cross-product of three 4-vectors ( p_i = epsilon_{iabc} p_a p_b p_c).
   friend Vec4 cross4(const Vec4& a, const Vec4& b, const Vec4& c);
 
-  // theta is polar angle between v1 and v2.
+  // theta is the opening angle (on the unit sphere) between v1 and v2.
   friend double theta(const Vec4& v1, const Vec4& v2);
   friend double costheta(const Vec4& v1, const Vec4& v2);
+  friend double sintheta(const Vec4& v1, const Vec4& v2);
 
   // phi is azimuthal angle between v1 and v2 around z axis.
   friend double phi(const Vec4& v1, const Vec4& v2);
@@ -219,6 +221,7 @@ Vec4 cross4(const Vec4& a, const Vec4& b, const Vec4& c);
 // theta is polar angle between v1 and v2.
 double theta(const Vec4& v1, const Vec4& v2);
 double costheta(const Vec4& v1, const Vec4& v2);
+double sintheta(const Vec4& v1, const Vec4& v2);
 double costheta(double e1, double e2, double m1, double m2, double s12);
 
 // phi is azimuthal angle between v1 and v2 around z axis.
@@ -265,7 +268,7 @@ public:
   // Member functions.
   void rot(double = 0., double = 0.);
   void rot(const Vec4& p);
-  void bst(double = 0., double = 0., double = 0.);
+  void bst(double = 0., double = 0., double = 0., double = 0.);
   void bst(const Vec4&);
   void bstback(const Vec4&);
   void bst(const Vec4&, const Vec4&);
@@ -401,7 +404,7 @@ public:
   double flat() ;
 
   // Generate random numbers according to exp(-x).
-  double exp() { return -log(flat()) ;}
+  double exp() ;
 
   // Generate random numbers according to x * exp(-x).
   double xexp() { return -log(flat() * flat()) ;}
@@ -424,10 +427,15 @@ public:
   int pick(const vector<double>& prob) ;
 
   // Randomly shuffle a vector, standard Fisher-Yates algorithm.
-  template<typename T>
-  void shuffle(vector<T>& vec) {
-    for (int i = vec.size() - 1; i > 0; --i)
-      swap(vec[i], vec[floor(flat() * (i + 1))]);
+  template<typename T> void shuffle(vector<T>& vec);
+
+  // Peek at the next random number in sequence without updating
+  // the generator state.
+  double peekFlat() {if (useExternalRndm) return -1;
+    RndmState oldState = stateSave;
+    double f = this->flat();
+    stateSave = oldState;
+    return f;
   }
 
   // Save or read current state to or from a binary file.
@@ -440,6 +448,22 @@ public:
 
   // The default seed, i.e. the Marsaglia-Zaman random number sequence.
   static constexpr int DEFAULTSEED = 19780503;
+
+#ifdef RNGDEBUG
+  // Random number methods used for debugging only.
+  double flatDebug(string loc, string file, int line);
+  double xexpDebug(string loc, string file, int line);
+  double gaussDebug(string loc, string file, int line);
+  pair<double, double> gauss2Debug(string loc, string file, int line);
+  double gammaDebug(string loc, string file, int line, double k0, double r0);
+  pair<Vec4, Vec4> phaseSpace2Debug(string loc, string file, int line,
+    double eCM, double m1, double m2);
+
+  // Static members for debugging to print call file location or filter.
+  static bool debugNow, debugLocation, debugIndex;
+  static int debugPrecision, debugCall;
+  static set<string> debugStarts, debugEnds, debugContains, debugMatches;
+#endif
 
 private:
 
@@ -506,8 +530,9 @@ public:
   // Reset bin contents.
   void null() ;
 
-  // Fill bin with weight.
-  void fill(double x, double w = 1.) ;
+  // Fill bin with weight w and weight uncertainty sig.
+  // (Default sig < 0 => use sig = w, for pure stat counting.)
+  void fill(double x, double w = 1., double sig = -1.) ;
 
   // Print a histogram with overloaded << operator.
   friend ostream& operator<<(ostream& os, const Hist& h) ;
@@ -518,14 +543,24 @@ public:
     bool xMidBin = true, bool printError = false) const ;
   void table(string fileName, bool printOverUnder = false,
     bool xMidBin = true, bool printError = false) const {
-    ofstream streamName(fileName.c_str());
-    table(streamName, printOverUnder, xMidBin, printError);}
-  void rivetTable(ostream& os = cout, bool printError = true) const ;
+    ofstream fileStream(fileName.c_str());
+    table(fileStream, printOverUnder, xMidBin, printError);}
+  void yodaTable(ostream& os = cout, string path = "hist",
+    double scaledBy = 1.0, vector<int> maskedBins = {}) const;
+  void yodaTable(string fileName, string path, double scaledBy = 1.0,
+    vector<int> maskedBins = {}) const {
+    ofstream fileStream(fileName.c_str());
+    yodaTable(fileStream, path, scaledBy, maskedBins);}
+  void rivetTable(ostream& os = cout, bool printError = true) const;
   void rivetTable(string fileName, bool printError = true) const {
-    ofstream streamName(fileName.c_str()); rivetTable(streamName, printError);}
-  void pyplotTable(ostream& os = cout, bool isHist = true) const ;
-  void pyplotTable(string fileName, bool isHist = true) const {
-    ofstream streamName(fileName.c_str()); pyplotTable(streamName, isHist);}
+    ofstream fileStream(fileName.c_str());
+    rivetTable(fileStream, printError);}
+  void pyplotTable(ostream& os = cout, bool isHist = true,
+    bool printError = false) const;
+  void pyplotTable(string fileName, bool isHist = true,
+    bool printError = false) const {
+    ofstream fileStream(fileName.c_str());
+    pyplotTable(fileStream, isHist, printError);}
 
   // Fill contents of a two-column (x,y) table, e.g. written by table() above.
   void fillTable(istream& is = cin);
@@ -574,7 +609,9 @@ public:
   // overflow (default) or including them (includeOverUnder = true). By
   // default, error includes granularity estimate obtained by comparing binned
   // vs unbinned mean value, but this can be switched off (unbinned = false).
-  double getXMedian(bool includeOverUnder=false) const;
+  double getXPercentile(double n, bool includeOverUnder = false) const;
+  double getXMedian(bool includeOverUnder=false) const {
+    return getXPercentile(50.0, includeOverUnder);}
   double getXMedianErr(bool unbinned=true) const;
 
   // Return average <Y> value.
@@ -602,27 +639,48 @@ public:
   // Return content of specific bin: 0 gives underflow and nBin+1 overflow.
   double getBinContent(int iBin) const;
 
+  // Return the statistical uncertainty of the bin.
+  double getBinError(int iBin) const;
+
+  // Return the squared statistical uncertainty of the bin.
+  double getBinError2(int iBin) const;
+
   // Return the lower edge of the bin.
   double getBinEdge(int iBin) const;
 
   // Return the width of the bin.
   double getBinWidth(int iBin=1) const;
 
-  // Return bin contents.
+  // Return the center of the bin.
+  double getBinCenter(int iBin) const;
+
+  // Return the contents for all bins.
   vector<double> getBinContents() const;
 
-  // Return bin edges.
+  // Return the statitistical uncertainty for all bins.
+  vector<double> getBinErrors() const;
+
+  // Return the squared statitistical uncertainty for all bins.
+  vector<double> getBinError2s() const;
+
+  // Return the lower edges for all bins.
   vector<double> getBinEdges() const;
 
-  // Return number of entries.
+  // Return the widths for all bins.
+  vector<double> getBinWidths() const;
+
+  // Return the center for all bins.
+  vector<double> getBinCenters() const;
+
+  // Return total number of entries.
   int getEntries(bool alsoNonFinite = true) const {
     return alsoNonFinite ? nNonFinite + nFill : nFill; }
 
-  // Return sum of weights.
+  // Return total sum of weights.
   double getWeightSum(bool alsoOverUnder = true) const {
     return alsoOverUnder ? inside + over + under : inside; }
 
-  // Return effective entries (for weighted histograms = number
+  // Return total effective entries (for weighted histograms = number
   // of equivalent unweighted events for same statistical power).
   double getNEffective() const {
     double sumw2 = 0.;
@@ -728,7 +786,7 @@ public:
   // Constructor requires name of Python program (and adds .py).
   HistPlot(string pythonName, bool useLegacyIn = false)
     : nFrame(), nTable(), useLegacy(useLegacyIn) {
-    toPython.open( (pythonName + ".py").c_str() );
+    toPython.open((pythonName + ".py").c_str());
     toPython << "from matplotlib import pyplot as plt" << endl
              << "from matplotlib.backends.backend_pdf import PdfPages" << endl;
     nPDF = 0; }
@@ -736,7 +794,7 @@ public:
   // Destructor should do final close.
   ~HistPlot() { toPython << "pp.close()" << endl; }
 
-  // New plot frame, with title, x and y labels, x and y sizes..
+  // New plot frame, with title, x and y labels, x and y sizes.
   void frame( string frameIn, string titleIn = "", string xLabIn = "",
     string yLabIn = "", double xSizeIn = 8., double ySizeIn = 6.) {
     framePrevious = frameName; frameName = frameIn; title = titleIn;
@@ -791,6 +849,29 @@ private:
   bool useLegacy;
 
 };
+
+//==========================================================================
+
+// Methods used for debugging random number sequences.
+
+#ifdef RNGDEBUG
+#define flat() flatDebug(__METHOD_NAME__, __FILE__, __LINE__)
+#define xexp() xexpDebug(__METHOD_NAME__, __FILE__, __LINE__)
+#define gauss() gaussDebug(__METHOD_NAME__, __FILE__, __LINE__)
+#define gamma(...) gammaDebug(__METHOD_NAME__, __FILE__, __LINE__, __VA_ARGS__)
+#define phaseSpace2(...) phaseSpace2Debug(__METHOD_NAME__, __FILE__, __LINE__,\
+    __VA_ARGS__)
+#endif
+
+//==========================================================================
+
+// Randomly shuffle a vector, standard Fisher-Yates algorithm.
+// This must be defined after possible RNG debugging.
+
+template<typename T> void Rndm::shuffle(vector<T>& vec) {
+  for (int i = vec.size() - 1; i > 0; --i)
+    swap(vec[i], vec[floor(flat() * (i + 1))]);
+}
 
 //==========================================================================
 

@@ -108,6 +108,16 @@ are experimentally distinguishable. No cut will be applied for
 <code>Q2Min &lt; pTHatMinDiverge^2</code>. 
 </parm> 
  
+<parm name="PhaseSpace:Q2Max" default="-1.0"> 
+The maximum value for the DIS variable <ei>Q^2 = - tHat</ei>. 
+Can only meaningfully be used for scattering processes between two 
+non-identical particles, i.e. where <ei>tHat</ei> and <ei>uHat</ei> 
+are experimentally distinguishable. Cut is applied only when 
+<ei>Q2Max &gt; Q2Min</ei>. This can be applied only when the hard process 
+is selected and full kinematics are known leading to a minor loss in 
+efficiency. 
+</parm> 
+ 
 <h3>Cuts in <ei>2 &rarr; 3</ei> processes</h3> 
  
 There are two main classes of <ei>2 &rarr; 3</ei> processes. One is the 
@@ -267,7 +277,7 @@ different parton shower evolutions, etc., and may therefore look
 quite different at the end.) The two cuts 
 <code>PhaseSpace:pTHatMin</code> and <code>PhaseSpace:pTHatMax</code> 
 therefore offers a way to slice a <ei>pT</ei> range into subranges, 
-see e.g. <code>main08.cc</code>. Alternatively the 
+see e.g. <code>main322.cc</code>. Alternatively the 
 <aloc href="UserHooks">User Hooks</aloc> machinery offers the 
 possibility for you to define your own reweighting of phase space 
 sampling, with a corresponding event weight, with 
@@ -320,4 +330,4 @@ give "reasonably-sized" weights.
  
 </chapter> 
  
-<!-- Copyright (C) 2023 Torbjorn Sjostrand --> 
+<!-- Copyright (C) 2025 Torbjorn Sjostrand --> 

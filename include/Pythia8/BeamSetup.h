@@ -1,5 +1,5 @@
 // BeamSetup.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -59,6 +59,10 @@ public:
   bool setLHAupPtr( LHAupPtr lhaUpPtrIn) {lhaUpPtr = lhaUpPtrIn;
     useNewLHA = false; return true;}
 
+  // For a given particle id, get a particle that represents its properties,
+  // i.e. a particle with the same PDF shape and parameters.
+  int represent(int idIn) const;
+
   // Switch to new beam particle identities; for similar hadrons only.
   bool setBeamIDs( int idAin, int idBin = 0);
 
@@ -88,6 +92,10 @@ public:
 
   // Initialize kinematics and PDFs of beams.
   bool initBeams(bool doNonPertIn, StringFlav* flavSelPtr);
+
+  // Return whether VMD states sampled.
+  bool getVMDsideA() { return doVMDsideA; }
+  bool getVMDsideB() { return doVMDsideB; }
 
   // Clear all beams.
   void clear();
@@ -120,8 +128,8 @@ public:
   LHAupPtr lhaUpPtr = {};
 
   // The two incoming beams.
-  BeamParticle   beamA = {};
-  BeamParticle   beamB = {};
+  BeamParticle beamA = {};
+  BeamParticle beamB = {};
 
   // Alternative Pomeron beam-inside-beam.
   BeamParticle beamPomA = {};

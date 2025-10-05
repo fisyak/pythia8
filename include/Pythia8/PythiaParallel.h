@@ -1,5 +1,5 @@
 // PythiaParallel.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Marius Utheim, Torbjorn Sjostrand.
+// Copyright (C) 2025 Marius Utheim, Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -48,7 +48,10 @@ public:
   void foreachAsync(function<void(Pythia*)> action);
 
   // Write final statistics, combining errors from each Pythia instance.
-  void stat() { pythiaHelper.stat(); }
+  // For all PhysicsBase objects, combine that PhysicsBase object
+  // across all threads, if onStat is defined for that specific
+  // PhysicsBase type.
+  void stat(bool combine = true);
 
   // Generate events in parallel.
   vector<long> run(long nEvents, function<void(Pythia*)> callback);
@@ -85,9 +88,13 @@ private:
   int numThreads;
   bool processAsync;
   bool balanceLoad;
+  bool doNext;
 
   // Internal Pythia objects.
   vector<unique_ptr<Pythia> > pythiaObjects;
+
+  // Mutex that can be used by each internal Pythia object.
+  mutex mainMutex;
 
 };
 

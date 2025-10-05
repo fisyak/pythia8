@@ -1,5 +1,5 @@
 // SimpleTimeShower.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -63,7 +63,6 @@ public:
   bool   MEorder, MEsplit, MEgluinoRec, isFlexible;
   bool   hasJunction;
 
-
   // Properties specific to current trial emission.
   int    flavour, iAunt;
   double mRad, m2Rad, mRec, m2Rec, mDip, m2Dip, m2DipCorr,
@@ -93,22 +92,24 @@ public:
     allowRescatter(), canVetoEmission(), doHVshower(), brokenHVsym(),
     setLambdaHV(), globalRecoil(), useLocalRecoilNow(), doSecondHard(),
     hasUserHooks(), singleWeakEmission(), alphaSuseCMW(), vetoWeakJets(),
-    allowMPIdipole(), weakExternal(), recoilDeadCone(), doDipoleRecoil(),
-    doPartonVertex(), pTmaxMatch(), pTdampMatch(), alphaSorder(),
-    alphaSnfmax(), nGluonToQuark(), weightGluonToQuark(), recoilStrategyRF(),
-    alphaEMorder(), nGammaToQuark(), nGammaToLepton(), nCHV(), nFlavHV(),
-    idHV(), alphaHVorder(), nMaxGlobalRecoil(), weakMode(), pTdampFudge(),
-    mc(), mb(), m2c(), m2b(), renormMultFac(), factorMultFac(),
-    fixedFacScale2(), alphaSvalue(), alphaS2pi(), Lambda3flav(),
-    Lambda4flav(), Lambda5flav(), Lambda3flav2(), Lambda4flav2(),
-    Lambda5flav2(), scaleGluonToQuark(), extraGluonToQuark(), pTcolCutMin(),
-    pTcolCut(), pT2colCut(), pTchgQCut(), pT2chgQCut(), pTchgLCut(),
-    pT2chgLCut(), pTweakCut(), pT2weakCut(), mMaxGamma(), m2MaxGamma(),
-    mZ(), gammaZ(), thetaWRat(),
-    mW(), gammaW(), CFHV(), alphaHVfix(), alphaHVref(), LambdaHV(),
-    pThvCut(), pT2hvCut(), mHV(), pTmaxFudgeMPI(), weakEnhancement(),
-    vetoWeakDeltaR2(), twoHard(), dopTlimit1(), dopTlimit2(), dopTdamp(),
-    pT2damp(), kRad(), kEmt(), pdfScale2(), doTrialNow(), canEnhanceEmission(),
+    allowMPIdipole(), weakExternal(), recoilDeadCone(),
+    doDipoleRecoil(), doPartonVertex(), recoilRFUseParents(false),
+    pTmaxMatch(), pTdampMatch(), alphaSorder(), alphaSnfmax(),
+    nGluonToQuark(), weightGluonToQuark(), recoilStrategyRF(),
+    alphaEMorder(), nGammaToQuark(), nGammaToLepton(), nCHV(),
+    nFlavHV(), idHV(), alphaHVorder(), nMaxGlobalRecoil(), weakMode(),
+    pTdampFudge(), mc(), mb(), m2c(), m2b(), renormMultFac(),
+    factorMultFac(), fixedFacScale2(), alphaSvalue(), alphaSmax(), alphaS2pi(),
+    Lambda3flav(), Lambda4flav(), Lambda5flav(), Lambda3flav2(),
+    Lambda4flav2(), Lambda5flav2(), scaleGluonToQuark(),
+    extraGluonToQuark(), weightRF(1), pTcolCutMin(), pTcolCut(),
+    pT2colCut(), pTchgQCut(), pT2chgQCut(), pTchgLCut(), pT2chgLCut(),
+    pTweakCut(), pT2weakCut(), mMaxGamma(), m2MaxGamma(), mZ(),
+    gammaZ(), thetaWRat(), mW(), gammaW(), CFHV(), alphaHVfix(),
+    alphaHVref(), LambdaHV(), pThvCut(), pT2hvCut(), mHV(),
+    pTmaxFudgeMPI(), weakEnhancement(), vetoWeakDeltaR2(),
+    twoHard(), dopTlimit1(), dopTlimit2(), dopTdamp(), pT2damp(),
+    kRad(), kEmt(), pdfScale2(), doTrialNow(), canEnhanceEmission(),
     canEnhanceTrial(), canEnhanceET(), doUncertaintiesNow(), dipSel(),
     iDipSel(), nHard(), nFinalBorn(), nMaxGlobalBranch(), nGlobal(),
     globalRecoilMode(), limitMUQ(), weakHardSize() { beamOffset = 0;
@@ -118,8 +119,8 @@ public:
   virtual ~SimpleTimeShower() override {}
 
   // Initialize alphaStrong and related pTmin parameters.
-  virtual void init( BeamParticle* beamAPtrIn = 0,
-    BeamParticle* beamBPtrIn = 0) override;
+  virtual void init( BeamParticle* beamAPtrIn = nullptr,
+    BeamParticle* beamBPtrIn = nullptr) override;
 
   // Find whether to limit maximum scale of emissions, and whether to dampen.
   virtual bool limitPTmax( Event& event, double Q2Fac = 0.,
@@ -130,7 +131,8 @@ public:
     int nBranchMax = 0) override;
 
   // Top-level routine for QED radiation in hadronic decay to two leptons.
-  virtual int showerQED( int i1, int i2, Event& event, double pTmax) override;
+  virtual int showerQED( int i1, int i2, Event& event, double pTmax = -1.)
+    override;
 
   // Prepare process-level event for shower + interleaved resonance decays.
   // Usage: prepareProcess( process, event, iPos).
@@ -227,21 +229,35 @@ private:
          brokenHVsym, setLambdaHV, globalRecoil, useLocalRecoilNow,
          doSecondHard, hasUserHooks, singleWeakEmission, alphaSuseCMW,
          vetoWeakJets, allowMPIdipole, weakExternal, recoilDeadCone,
-         doDipoleRecoil, doPartonVertex;
+         doDipoleRecoil, doPartonVertex, recoilRFUseParents;
   int    pdfModeSave;
   int    pTmaxMatch, pTdampMatch, alphaSorder, alphaSnfmax, nGluonToQuark,
          weightGluonToQuark, recoilStrategyRF, alphaEMorder, nGammaToQuark,
          nGammaToLepton, nCHV, nFlavHV, idHV, alphaHVorder, nMaxGlobalRecoil,
          weakMode;
-  double pTdampFudge, mc, mb, m2c, m2b, renormMultFac, factorMultFac,
-         fixedFacScale2, alphaSvalue, alphaS2pi, Lambda3flav, Lambda4flav,
-         Lambda5flav, Lambda3flav2, Lambda4flav2, Lambda5flav2,
-         scaleGluonToQuark, extraGluonToQuark, pTcolCutMin, pTcolCut,
-         pT2colCut, pTchgQCut, pT2chgQCut, pTchgLCut, pT2chgLCut,
-         pTweakCut, pT2weakCut, mMaxGamma, m2MaxGamma,
+  double pTdampFudge, mc, mb, m2c, m2b, renormMultFac,
+         factorMultFac, fixedFacScale2, alphaSvalue, alphaSmax, alphaS2pi,
+         Lambda3flav, Lambda4flav, Lambda5flav, Lambda3flav2, Lambda4flav2,
+         Lambda5flav2, scaleGluonToQuark, extraGluonToQuark, weightRF,
+         pTcolCutMin, pTcolCut, pT2colCut, pTchgQCut, pT2chgQCut,
+         pTchgLCut, pT2chgLCut, pTweakCut, pT2weakCut, mMaxGamma, m2MaxGamma,
          mZ, gammaZ, thetaWRat, mW, gammaW, CFHV,
          alphaHVfix, alphaHVref, LambdaHV, pThvCut, pT2hvCut, mHV,
          pTmaxFudgeMPI, weakEnhancement, vetoWeakDeltaR2;
+
+  // Optional nonsingular and 2nd-order terms.
+  bool   doLOT{false}, doHOT{false};
+  double cEmitG{0.}, cEmitQ{0.}, cEmitC{0.}, cEmitB{0.},
+    cSplit{0.}, cSplitC{0.}, cSplitB{0.}, hEmitHard{0.}, hEmitColl{0.},
+    hEmitSoft{0.}, hSplitHard{0.}, hSplitColl{0.};
+
+  // Oversample when using finite corrections to the QCD shower.
+  void   finiteOversample(int colTypeAbs, double& overFacLog,
+    double& overFacLin, double& overFacSplit);
+
+  // Return weight for different finite corrections to QCD shower.
+  double finiteCorrection(TimeDipoleEnd& dip, Event& event, bool doLOTNow,
+    int colTypeAbs);
 
   // alphaStrong, alphaEM and alpha_HV calculations.
   AlphaStrong alphaS;
@@ -279,6 +295,10 @@ private:
   void setupWeakdipExternal(Event& event, bool limitPTmaxIn = true);
   void setupHVdip( int iSys, int i, int colvType, Event& event,
     bool limitPTmaxIn = true);
+
+  // Apply ME corrections for a specific subsystem.
+  bool applyMECorrections(const Event& event, TimeDipoleEnd* dipBranch,
+    int iSysBranch);
 
   // Special setup for onium.
   void regenerateOniumDipoles(Event & event);
@@ -362,6 +382,10 @@ private:
   int resDecScaleChoice{-1}, iHardResDecSav{}, nRecurseResDec{};
   vector<int> idResDecSav;
   vector<double> pTresDecSav;
+
+  // Settings and containers for control of MECs.
+  bool skipFirstMECinHardProc;
+  vector<int> skipFirstMECinResDecIDs{};
 
   // Onium emissions.
   bool doOniumShower{false};

@@ -1,5 +1,5 @@
 // ProcessLevel.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -76,7 +76,8 @@ bool ProcessLevel::init( bool doLHA, SLHAinterface* slhaInterfacePtrIn,
     int idBin = beamB2gamma ? 22 : idB;
     sigmaTotPtr->calc( idAin, idBin, eCM);
     sigmaND   = sigmaTotPtr->sigmaND();
-  } else {
+  } else if ( ( particleDataPtr->isHadron(idA) || (idA == 22) )
+          &&  ( particleDataPtr->isHadron(idB) || (idB == 22) ) ) {
     // Usage of both sigmaTotPtr and sigmaCmbPtr to be fixed in the future.
     sigmaTotPtr->calc( idA, idB, eCM);
     double mA = particleDataPtr->m0(idA);

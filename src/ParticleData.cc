@@ -1,5 +1,5 @@
 // ParticleData.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -456,6 +456,42 @@ double ParticleDataEntry::mSel() const {
 
   // Done.
   return mNow;
+}
+
+//--------------------------------------------------------------------------
+
+// Set a temporary mass range for BW selection.
+
+double ParticleDataEntry::mSelInRange(double mMinNowIn, double mMaxNowIn) {
+
+  // Save current range values and calculate new mass limits.
+  double atanLowSave = atanLow;
+  double atanDifSave = atanDif;
+  double mMinNow     = max( mMinSave, mMinNowIn);
+  double mMaxNow     = (mMaxSave > mMinSave) ? min( mMaxSave, mMaxNowIn)
+                     : mMaxNowIn;
+
+  // Find new atan expressions to be used in random mass selection.
+  if (modeBWnow < 3) {
+    atanLow = atan( 2. * (mMinNow - m0Save) / mWidthSave );
+    double atanHigh = (mMaxNow > mMinNow)
+      ? atan( 2. * (mMaxNow - m0Save) / mWidthSave ) : 0.5 * M_PI;
+    atanDif = atanHigh - atanLow;
+  } else {
+    atanLow = atan( (pow2(mMinNow) - pow2(m0Save))
+      / (m0Save * mWidthSave) );
+    double atanHigh = (mMaxNow > mMinNow)
+      ? atan( (pow2(mMaxNow) - pow2(m0Save)) / (m0Save * mWidthSave) )
+      : 0.5 * M_PI;
+    atanDif = atanHigh - atanLow;
+  }
+
+  // Call mSel for these limits, restore old range, and provide answer.
+  double mTemp = mSel();
+  atanLow = atanLowSave;
+  atanDif = atanDifSave;
+  return mTemp;
+
 }
 
 //--------------------------------------------------------------------------
@@ -1099,8 +1135,7 @@ bool ParticleData::processXML(bool reset) {
 void ParticleData::listXML(string outFile) {
 
   // Convert file name to ofstream.
-  const char* cstring = outFile.c_str();
-  ofstream os(cstring);
+  ofstream os(outFile.c_str());
 
   // Iterate through the particle data table.
   for (auto pdtEntry = pdt.begin(); pdtEntry != pdt.end(); ++pdtEntry) {
@@ -1282,8 +1317,7 @@ bool ParticleData::readFF(string inFile, bool reset) {
 void ParticleData::listFF(string outFile) {
 
   // Convert file name to ofstream.
-    const char* cstring = outFile.c_str();
-    ofstream os(cstring);
+  ofstream os(outFile.c_str());
 
   // Iterate through the particle data table.
   for (auto pdtEntry = pdt.begin(); pdtEntry != pdt.end(); ++pdtEntry) {
@@ -1307,7 +1341,8 @@ void ParticleData::listFF(string outFile) {
        << setw(10) << particlePtr->mMin() << " "
        << setw(10) << particlePtr->mMax() << " "
        << scientific << setprecision(5)
-       << setw(12) << particlePtr->tau0() << "\n";
+       << setw(12) << particlePtr->tau0()
+       << setw(12) << particlePtr->varWidth() << "\n";
 
     // Loop through the decay channel table for each particle.
     if (particlePtr->sizeChannels() > 0) {

@@ -1,5 +1,5 @@
 // VinciaHistory.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -147,7 +147,7 @@ class HistoryNode {
     double scaleIn) : HistoryNode() {
     state = stateIn;
     clusterableChains = chainsIn;
-    QevolNow = scaleIn;
+    qEvolNow = scaleIn;
     hasRes = false;
     iRes = 0;
     idRes = 0;
@@ -187,18 +187,18 @@ class HistoryNode {
   int colTypeB() const {return state[4].colType();}
 
   // Get evolution scale (used in trial shower).
-  double getEvolNow() const {return QevolNow;}
+  double getEvolNow() const {return qEvolNow;}
 
   // Setter methods.
-  void setEvolScale(double scaleIn) {QevolNow = scaleIn;}
+  void setEvolScale(double scaleIn) {qEvolNow = scaleIn;}
 
   // Current state.
   Event state;
 
   // Resonance info.
   bool hasRes;
-  int iRes;
-  int idRes;
+  int  iRes;
+  int  idRes;
 
   // Minimal number of qqbar pairs.
   int nMinQQbar;
@@ -231,7 +231,7 @@ class HistoryNode {
   bool isInitPtr;
 
   // The value of the evolution scale.
-  double QevolNow;
+  double qEvolNow;
 
   // List of next possible clusterings.
   // Map is from corresponding resolution criterion.
@@ -262,8 +262,13 @@ public:
   // Check if history failed merging scale cut.
   bool isBelowMS() {return failedMSCut;}
 
-  // Perform a trial shower and get the ckkwl weight.
+  // Perform a trial shower and get the CKKW-L weight
+  // (excluding last no-emission probability that is
+  // calculated in the main shower).
   double getWeightCKKWL();
+
+  // Find the first clustered state above the merging scale.
+  Event getFirstClusteredEventAboveTMS();
 
   // What was the multiplicity of this event?
   int getNClusterSteps();
@@ -273,9 +278,9 @@ public:
 
   // Should we overwrite the original event?
   // E.g. if an MPI was generated.
-  bool hasNewProcess() {return hasNewProcessSav;}
+  bool  hasNewProcess() {return hasNewProcessSav;}
   Event getNewProcess() {return newProcess;}
-  bool doAbort() {return aborted;}
+  bool  doAbort() {return aborted;}
 
 private:
 
@@ -321,7 +326,7 @@ private:
   // Initialise history nodes for each system.
   HistoryNodes initHistoryNodes(ColourFlow& flow );
 
-  // Translate abstract book-keeping of colourordering into
+  // Translate abstract book-keeping of colour ordering into
   // systems of particles.
   map<int, vector<vector<int>>> getSystems(ColourFlow& flow,
     map<int, int>& sysToRes);
@@ -418,14 +423,14 @@ private:
 
   // The merging scale and whether it is the evolution variable.
   double qms;
-  bool msIsEvolVar;
+  bool   msIsEvolVar;
 
-  // The maximum multiplicity of our me-generator.
+  // The maximum multiplicity of our ME generator.
   int nMax, nMaxRes;
 
   // Possible new hard process info (if MPI was generated).
-  bool hasNewProcessSav;
-  Event newProcess;
+  bool   hasNewProcessSav;
+  Event  newProcess;
   double newProcessScale;
 
   // Flag to signal if something went wrong.

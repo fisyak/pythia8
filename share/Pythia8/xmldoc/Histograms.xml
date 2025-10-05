@@ -7,7 +7,9 @@ one-dimensional histograms, useful for quick-and-dirty testing,
 without the need to link to more sophisticated packages. 
 For this reason it is used in many of the 
 <aloc href="SampleMainPrograms">sample main programs</aloc> 
-found in the <code>examples</code> subdirectory. 
+found in the <code>examples</code> subdirectory. At the end 
+of the section we show an example of how to link to a more 
+sophisticated package. 
  
 <h3>Basic principles</h3> 
  
@@ -180,10 +182,12 @@ where the second argument tells how each histogram will be plotted.
 Default is histogram style, "h", but the values can also be connected 
 with full lines "-", dashed ones "--", or dash-dotted ones "-.", or 
 plotted as points "." or crosses "x", to mention some of the many 
-options offered by Pyplot. Here you can also specify the colour, 
-separated by a comma from the line style, to override the normal 
-colour cycle. The most common colours can be given just as a single 
-letter, such as "r", "g", "b", but a more extensive 
+options offered by Pyplot. As alternative to "h", the argument "e" can 
+be specified which provides the same style as "h" but with error bars 
+included. You can also specify the colour, separated by a comma from 
+the line style, to override the normal colour cycle. The most common 
+colours can be given just as a single letter, such as "r", "g", "b", 
+but a more extensive 
 <a href="https://matplotlib.org/examples/color/named_colors.html"> 
 colour palette</a> allow finetuning to nuances such as "orange", 
 "gold", "darkgreen", "royalblue", "crimson", and so on. 
@@ -218,8 +222,8 @@ and <code>onlyZ.pdf</code>. You may of course edit the python file further
 to improve on the finer details. 
  
 <p/> 
-Examples are provided in <code>main03.cc</code> and <code>main07.cc</code>, 
-where the latter is the simpler one. The <code>main51.cc</code> example 
+Several examples are provided, e.g. in <code>main112.cc</code> and 
+<code>main113.cc</code>. The <code>main201.cc</code> example 
 illustrates that the <ei>x</ei> scale can be chosen logarithmically, 
 by using an optional last argument when histograms are booked. 
  
@@ -312,13 +316,26 @@ change the title of a histogram, but keep other properties unchanged.
 reset bin contents, but keep other histogram properties unchanged. 
 </method> 
  
-<method name="void Hist::fill(double xValue, double weight)"> 
+<method name="void Hist::fill(double xValue, double weight, double wstat)"> 
 fill the histogram, where 
 <argument name="xValue"> 
-is the <ei>x</ei> position where the filling should occur, and 
+is the <ei>x</ei> position where the filling should occur, 
 </argument> 
 <argument name="weight" default="1."> 
-is the amount of weight to be added at this <ei>x</ei> value. 
+is the amount of weight to be added at this <ei>x</ei> value, and 
+</argument> 
+<argument name="sigma" default="-1."> 
+allows to assign the weight being added a statistical uncertainty larger or 
+smaller than the weight itself. For values <code>sigma &gt; 0</code>, 
+the statistical uncertainty of the weight being added is interpreted 
+as an absolute value; i.e., <code>weight</code> &pm; 
+<code>sigma</code> is added to the histogram contents. 
+For values <code>sigma &lt; 0</code>, it is interpreted relative to 
+the weight itself, as &pm; <code>-sigma * weight</code>. 
+Thus, to add 
+<ei>100 &pm; 10</ei> to a histogram bin, one could call either 
+<code>fill( x, 100., 10. )</code> 
+or <code>fill( x, 100., -0.1 )</code>. 
 </argument> 
 </method> 
  
@@ -338,10 +355,10 @@ The Pyplot interface will display correct values, however.
 </method> 
  
 <method name="void Hist::table(ostream&amp; os = cout, 
-bool printOverUnder = false, bool xMidBin = true, bool printError = true)"> 
+bool printOverUnder = false, bool xMidBin = true, bool printError = false)"> 
 </method> 
 <methodmore name="void Hist::table(string fileName, 
-bool printOverUnder = false, bool xMidBin = true, bool printError = true)"> 
+bool printOverUnder = false, bool xMidBin = true, bool printError = false)"> 
 print a three-column table, where the first column gives the center of 
 each bin, the second one the corresponding bin contents, and the bin 
 errors. The table may be useful for plotting e.g. with Gnuplot. 
@@ -357,6 +374,21 @@ just below or above the regular histogram bins.)
 <ei>x</ei> value at the beginning of each bin printed, rather than the 
 default midpoint value. Finally, the optional <code>printError = 
 false</code> will force the values in the third column to be zero. 
+</methodmore> 
+ 
+<method name="void Hist::yodaTable(ostream&amp; os = cout, 
+string path = &quot;hist&quot;, double scaledBy = 1.0, 
+vector&lt;int&gt; maskedBins = {})"> 
+</method> 
+<methodmore name="void Hist::yodaTable(string fileName, 
+string path = &quot;hist&quot;, double scaledBy = 1.0, 
+vector&lt;int&gt; maskedBins = {})"> 
+print YODA <code>ESTIMATE1D_V3</code> histogram. Here, the arguments 
+provide additional information that can be stored in a YODA histogram: 
+<code>path</code> is the plotting path for the histogram, 
+<code>scaledBy</code> is the histogram scale, and <code>maskedBins</code> 
+is a vector of bin indices to mask. The choice between the two methods 
+is the same as above for the <code>table</code> methods. 
 </methodmore> 
  
 <method name="void Hist::rivetTable(ostream&amp; os = cout, 
@@ -375,10 +407,10 @@ be output as zero.
 </methodmore> 
  
 <method name="void Hist::pyplotTable(ostream&amp; os = cout, 
-bool isHist = true)"> 
+bool isHist = true, bool printError = false)"> 
 </method> 
 <methodmore name="void Hist:pyplotTable(string fileName, 
-bool isHist = true)"> 
+bool isHist = true, bool printError = false)"> 
 prints either a two- or a three-column table, depending on whether 
 the contents are to be plotted as a curve or as a histogram, the latter 
 being default. In either case the first column gives the center of each 
@@ -472,6 +504,13 @@ Return median in X and its statistical error, ignoring underflow and
  median), but this can be switched off <code>(unbinned = false)</code>. 
 </methodmore> 
  
+<method name="double getXPercentile(double n, bool includeOverUnder = false)"> 
+Return <ei>n</ei>'th percentile in X, ignoring underflow and overflow 
+(default) or including them <code>(includeOverUnder = true)</code>. 
+The input value for <ei>n</ei> is assumed to be in percent. Thus, 
+e.g., for the 90th percentile, use <code>n = 90.0</code>. 
+</method> 
+ 
 <method name="double getYMean()"> 
 Return the average value in Y, calculated as the sum of weights inside 
 the histogram range divided by the number of times it was filled. 
@@ -495,9 +534,9 @@ which the bin granularity error is not estimated).
 <method name="double getXRMS(bool unbinned=true)"> 
 </method> 
 <methodmore name="double getXRMSErr(bool unbinned=true)"> 
-Wrapper of <code>getXRMN()</code> to return the root-mean-square 
-width (aka the root of the second central moment, aka the 
-root-mean-square deviation about the mean), and its error. If <code>unbinned = 
+Wrapper of <code>getXRMN()</code> to return the root-mean-square width 
+(aka the root of the second central moment, aka the root-mean-square 
+deviation about the mean), and its error. If <code>unbinned = 
 false</code> an estimate of the bin granularity error is added in 
 quadrature to the statistical error. 
 </methodmore> 
@@ -508,8 +547,25 @@ return the value in bin <code>iBin</code>, ranging from 1 through
 <code>numberOfBins + 1</code> for overflow. 
 </method> 
  
+<method name="double Hist::getBinError(int iBin)"> 
+return the error in bin <code>iBin</code>, ranging from 1 through 
+<code>numberOfBins</code>. Note: with the value defined as the sum of 
+weights in the bin, the error is defined the square root of the sum of 
+squared weights. 
+</method> 
+ 
+<method name="double Hist::getBinError2(int iBin)"> 
+return the error squared in bin <code>iBin</code>, ranging from 1 
+through <code>numberOfBins</code>. 
+</method> 
+ 
 <method name="double Hist::getBinEdge(int iBin)"> 
 return the lower edge of bin <code>iBin</code>, ranging from 1 through 
+<code>numberOfBins</code>. 
+</method> 
+ 
+<method name="double Hist::getBinCenter(int iBin)"> 
+return the center of bin <code>iBin</code>, ranging from 1 through 
 <code>numberOfBins</code>. 
 </method> 
  
@@ -519,11 +575,27 @@ return the width of bin <code>iBin</code>, ranging from 1 through
 </method> 
  
 <method name="vector&lt;double&gt; Hist::getBinContents()"> 
-return the bin contents. 
+the same as <code>getBinContent</code>, but for all bins. 
+</method> 
+ 
+<method name="vector&lt;double&gt; Hist::getBinErrors()"> 
+the same as <code>getBinError</code>, but for all bins. 
+</method> 
+ 
+<method name="vector&lt;double&gt; Hist::getBinError2s()"> 
+the same as <code>getBinError2</code>, but for all bins. 
 </method> 
  
 <method name="vector&lt;double&gt; Hist::getBinEdges()"> 
-return the bin edges. 
+the same as <code>getBinEdges</code>, but for all bins. 
+</method> 
+ 
+<method name="vector&lt;double&gt; Hist::getBinWidths()"> 
+the same as <code>getBinWidths</code>, but for all bins. 
+</method> 
+ 
+<method name="vector&lt;double&gt; Hist::getBinCenters()"> 
+the same as <code>getBinCenters</code>, but for all bins. 
 </method> 
  
 <method name="int Hist::getEntries(bool alsoNonFinite = true)"> 
@@ -725,12 +797,13 @@ is the name of the histogram to be plotted,
 </argument> 
 <argument name="style"> 
 tells how the histogram data will be represented in the figure, where 
-default "h" is histogram style, "-" full lines, "--" dashed ones, 
-"-." dash-dotted ones, "." points, "o" circles, "+" and "x" crosses, 
-"*" stars, and so on as described in the Pyplot manual; additionally a 
-colour may also be specified as described earlier, separated by a comma 
-from the symbol; either of both can be used, e.g. "h,r", ",magenta", 
-"+,", "--" or just ""; and 
+default "h" is histogram style, "-" full lines, "--" dashed ones, "-." 
+dash-dotted ones, "." points, "o" circles, "+" and "x" crosses, "*" 
+stars, and so on as described in the Pyplot manual; alternatively to 
+"h" the argument "e" can be specified which will include error bars on 
+the histogram; additionally a colour may also be specified as 
+described earlier, separated by a comma from the symbol; either of 
+both can be used, e.g. "h,r", ",magenta", "+,", "--" or just ""; and 
 </argument> 
 <argument name="legend"> 
 is the text written in association with the plotting symbol, where the 
@@ -819,6 +892,84 @@ is almost the same, the exception being that the two compulsory arguments
 <code>frameName</code> and <code>hist</code> have been put at the beginning. 
 </method> 
  
+ <h3>Using YODA histograms</h3> 
+ 
+The <code>YODA</code> library <ref>Buc23</ref> for statistics and plotting 
+(found at <a href="https://yoda.hepforge.org/">the YODA webpage</a>) is a 
+lightweight library for histogramming, which mainly serves as the plotting 
+framework for <a href="https://rivet.hepforge.org/">RIVET</a> (see also the 
+section on <aloc href="RIVETusage">RIVET usage in PYTHIA</aloc>). It can, 
+however, also be used in stand-alone form, and PYTHIA comes with a 
+simplistic interface to make it easy to link to <code>YODA</code> and use 
+the statistics objects. 
+ 
+<p/> 
+After installing the <code>YODA</code> library to a suitable location, 
+configure PYTHIA with <code>YODA</code> using <code>--with-yoda</code>, 
+after which you can use the interface, located in 
+<code>include/PythiaPlugins/Pythia8Yoda.h</code>. Note that programs using 
+<code>YODA</code> must be compiled with at least <code>--std=c++17</code>, 
+which is handled automatically by <code>examples/Makefile</code> for 
+the example <code>main114.cc</code>. 
+ 
+<p/> 
+Use the interface by creating a <code>Pythia8Yoda</code> object using the 
+constructor: 
+<method name="Pythia8Yoda::Pythia8Yoda(const string& anaNameIn = 
+&quot;/PYTHIA8/&quot;, const string& outputIn = &quot;pythia&quot;)"> 
+which takes two optional arguments: one that gives histograms a prefix 
+for easier sorting, and a second providing the output file name, which 
+will be postfixed by <code>.yoda</code>. 
+</method> 
+ 
+<p/> 
+The main method for booking new histograms or profiles is the templated: 
+<method name="shared_ptr&lt;T&gt; Pythia8Yoda::book(Args&&... args)"> 
+which will return a shared pointer to any <code>YODA</code> object of 
+type <code>T</code>, given its normal constructor arguments. 
+</method> 
+<p/> 
+Specializations are given for the most common types, which are also aliased 
+as: <code>Histo1DPtr, Histo2DPtr, Histo3DPtr, Profile1DPtr</code>, and 
+<code>Profile2DPtr</code>. They can each, in turn, be booked by the methods: 
+ 
+<method name="Histo1DPtr Pythia8Yoda::bookHisto1D(int nBins, double xMin, 
+double xMax, const string& title)"> 
+which books a 1D histogram. 
+</method> 
+ 
+<method name="Histo2DPtr Pythia8Yoda::bookHisto2D(int nBinsX, double xMin, 
+double xMax, int nBinsY, double yMin, double yMax, const std::string& title)"> 
+which books a 2D histogram. 
+</method> 
+ 
+<method name="Histo3DPtr Pythia8Yoda::bookHisto3D(int nBinsX, double xMin, 
+double xMax, int nBinsY, double yMin, double yMax, int nBinsZ, double zMin, 
+double zMax, const std::string& title)"> 
+which books a 3D histogram. 
+</method> 
+ 
+<method name="Profile1DPtr Pythia8Yoda::bookProfile1D(int nBins, double xMin, 
+double xMax, const std::string& title)"> 
+which books a 1D profile histogram. 
+</method> 
+<method name="Profile2DPtr Pythia8Yoda::bookProfile2D(int nBinsX, double xMin, 
+double xMax, int nBinsY, double yMin, double yMax, const std::string& title)"> 
+which books a 2D profile histogram. 
+</method> 
+<p/> 
+At the end of the run (or intermittently), histograms can be written to a file 
+by calling: 
+<method name="void Pythia8Yoda::write()"> 
+which writes to the file name given in the constructor. 
+</method> 
+<p/> 
+Further example use cases can be studied in the example <code>main114</code>. 
+After writing out a histogram file, it can be plotted with the standard 
+<code>YODA</code> or <code>RIVET</code> tools (e.g. 
+<code>rivet-mkhtml</code>), or by yourself using a custom Python 
+script. We refer to the <a href="https://yoda.hepforge.org/">YODA 
+documentation</a> for details. 
 </chapter> 
  
-<!-- Copyright (C) 2023 Torbjorn Sjostrand --> 
+<!-- Copyright (C) 2025 Torbjorn Sjostrand --> 

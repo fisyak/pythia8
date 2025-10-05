@@ -1,5 +1,5 @@
 // Plugins.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Philip Ilten, Manuel Szewc, and Torbjorn Sjostrand.
+// Copyright (C) 2025 Philip Ilten, Manuel Szewc, and Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -185,6 +185,13 @@ template <typename T> shared_ptr<T> make_plugin(
 
 #define PYTHIA8_PLUGIN_XML(INDEX) \
   extern "C" {const char* RETURN_XML() {return INDEX;}}
+
+//==========================================================================
+
+// Macro to register a plugin as PythiaParallel compatible.
+
+#define PYTHIA8_PLUGIN_PARALLEL(COMPATIBLE) \
+  extern "C" {bool CHECK_PARALLEL() {return COMPATIBLE;}}
 
 //==========================================================================
 

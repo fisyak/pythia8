@@ -1,5 +1,5 @@
 // PhysicsBase.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -36,6 +36,7 @@ void PhysicsBase::initInfoPtr(Info& infoIn) {
   sigmaTotPtr      = infoPtr->sigmaTotPtr;
   sigmaCmbPtr      = infoPtr->sigmaCmbPtr;
   userHooksPtr     = infoPtr->userHooksPtr;
+  mutexPtr         = infoPtr->mutexPtr;
 
   beamAPtr         = &beamSetupPtr->beamA;
   beamBPtr         = &beamSetupPtr->beamB;

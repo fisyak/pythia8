@@ -1,11 +1,12 @@
 // HadronLevel.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
 // Function definitions (not found in the header) for the HadronLevel class.
 
 #include "Pythia8/HadronLevel.h"
+#include "Pythia8/StringInteractions.h"
 
 namespace Pythia8 {
 
@@ -53,13 +54,17 @@ const double HadronLevel::MTINY = 0.1;
 
 // Find settings. Initialize HadronLevel classes as required.
 
-bool HadronLevel::init( TimeShowerPtr timesDecPtr, RHadrons* rHadronsPtrIn,
+bool HadronLevel::init( TimeShowerPtr timesDecPtrIn, RHadronsPtr rHadronsPtrIn,
+  LundFragmentationPtr fragPtrIn, vector<FragmentationModelPtr>* fragPtrsIn,
   DecayHandlerPtr decayHandlePtr, vector<int> handledParticles,
   StringIntPtr stringInteractionsPtrIn, PartonVertexPtr partonVertexPtrIn,
   SigmaLowEnergy& sigmaLowEnergyIn, NucleonExcitations& nucleonExcitationsIn) {
 
   // Store other input pointers.
   rHadronsPtr     = rHadronsPtrIn;
+  timesDecPtr     = timesDecPtrIn;
+  fragPtr         = fragPtrIn;
+  fragPtrs        = fragPtrsIn;
 
   // Main flags.
   doHadronize     = flag("HadronLevel:Hadronize");
@@ -67,12 +72,10 @@ bool HadronLevel::init( TimeShowerPtr timesDecPtr, RHadrons* rHadronsPtrIn,
   doRescatter     = flag("HadronLevel:Rescatter");
   doBoseEinstein  = flag("HadronLevel:BoseEinstein");
   doDeuteronProd  = flag("HadronLevel:DeuteronProduction");
-
-  // Boundary mass between string and ministring handling.
-  mStringMin      = parm("HadronLevel:mStringMin");
+  doQED           = flag("HadronLevel:QED");
 
   // For junction processing.
-  eNormJunction   = parm("StringFragmentation:eNormJunction");
+  pNormJunction   = parm("StringFragmentation:pNormJunction");
 
   // Allow R-hadron formation.
   allowRH         = flag("RHadrons:allow");
@@ -85,7 +88,7 @@ bool HadronLevel::init( TimeShowerPtr timesDecPtr, RHadrons* rHadronsPtrIn,
   doPartonVertex  = flag("PartonVertex:setVertex");
 
   // Need string density information be collected?
-  closePacking    = flag("StringPT:closePacking");
+  closePacking    = flag("ClosePacking:doClosePacking");
 
   // Initialize string interactions (Ropewalk and Flavour Ropes) if present.
   fragmentationModifierPtr =
@@ -95,14 +98,20 @@ bool HadronLevel::init( TimeShowerPtr timesDecPtr, RHadrons* rHadronsPtrIn,
   // Initialize auxiliary fragmentation classes.
   flavSel.init();
   pTSel.init();
-  zSel.init();
+  // If initialisation of z selection fails, abort.
+  if ( !zSel.init() ) return false;
+
+  // Set the fragmentation weights container.
+  if (wvec("VariationFrag:list").size() != 0)
+    wgtsPtr = &infoPtr->weightContainerPtr->weightsFragmentation;
 
   // Initialize auxiliary administrative class.
   colConfig.init(infoPtr, &flavSel);
 
-  // Initialize string and ministring fragmentation.
-  stringFrag.init(&flavSel, &pTSel, &zSel, fragmentationModifierPtr);
-  ministringFrag.init(&flavSel, &pTSel, &zSel);
+  // Initialize the fragmentation pointers.
+  fragPtr->init(&flavSel, &pTSel, &zSel, fragmentationModifierPtr);
+  for (auto &ptr: *fragPtrs)
+    ptr->init(&flavSel, &pTSel, &zSel, fragmentationModifierPtr);
 
   // Initialize particle decays.
   decays.init(timesDecPtr, &flavSel, decayHandlePtr, handledParticles);
@@ -110,8 +119,8 @@ bool HadronLevel::init( TimeShowerPtr timesDecPtr, RHadrons* rHadronsPtrIn,
   // Initialize low-energy framework.
   sigmaLowEnergyPtr = &sigmaLowEnergyIn;
   nucleonExcitationsPtr = &nucleonExcitationsIn;
-  lowEnergyProcess.init( &flavSel, &stringFrag, &ministringFrag,
-    &sigmaLowEnergyIn, &nucleonExcitationsIn);
+  lowEnergyProcess.init( &flavSel, fragPtr->stringFragPtr,
+    fragPtr->ministringFragPtr, &sigmaLowEnergyIn, &nucleonExcitationsIn);
 
   // Initialize rescattering settings if applicable.
   if (doRescatter) {
@@ -145,11 +154,8 @@ bool HadronLevel::init( TimeShowerPtr timesDecPtr, RHadrons* rHadronsPtrIn,
   // Initialize DeuteronProduction.
   if (doDeuteronProd) deuteronProd.init();
 
-  // Initialize Hidden-Valley fragmentation, if necessary.
-  useHiddenValley = hiddenvalleyFrag.init();
-
   // Send flavour and z selection pointers to R-hadron machinery.
-  rHadronsPtr->fragPtrs( &flavSel, &zSel);
+  rHadronsPtr->init(&flavSel, &pTSel, &zSel);
 
   // Initialize the colour tracing class.
   colTrace.init(loggerPtr);
@@ -168,11 +174,12 @@ bool HadronLevel::init( TimeShowerPtr timesDecPtr, RHadrons* rHadronsPtrIn,
 
 bool HadronLevel::next( Event& event) {
 
+  // Clear the fragmentation weights and flavor counts.
+  if (wgtsPtr != nullptr) wgtsPtr->clear();
+
   // Store current event size to mark Parton Level content.
   event.savePartonLevelSize();
-
-  // Do Hidden-Valley fragmentation, if necessary and possible.
-  if (useHiddenValley && !hiddenvalleyFrag.fragment(event)) return false;
+  int sizePartonLevel = event.size();
 
   // Colour-octet onia states must be decayed to singlet + gluon.
   if (!decayOctetOnia(event)) return false;
@@ -203,10 +210,6 @@ bool HadronLevel::next( Event& event) {
       if (!findSinglets( event, (stringRepulsionPtr != nullptr) ))
         return false;
 
-      // Fragment off R-hadrons, if necessary.
-      if (allowRH && !rHadronsPtr->produce( colConfig, event))
-        return false;
-
       // Save list with rapidity pairs of the different string pieces.
       if (closePacking) {
         vector< vector< pair<double,double> > > rapPairs =
@@ -235,6 +238,14 @@ bool HadronLevel::next( Event& event) {
       if (fragmentationModifierPtr)
         fragmentationModifierPtr->initEvent(event, colConfig);
 
+      // MiniStringFragmentation needs to know if the event is diffractive.
+      bool isDiff = infoPtr->isDiffractiveA() || infoPtr->isDiffractiveB();
+
+      // Fragment models that do not use the color systems,
+      // e.g. HiddenValleyFragmentation and RHadrons.
+      for (auto &ptr: *fragPtrs)
+        if (!ptr->fragment(-1, colConfig, event, isDiff)) return false;
+
       // Process all colour singlet (sub)systems.
       for (int iSub = 0; iSub < colConfig.size(); ++iSub) {
 
@@ -243,16 +254,8 @@ bool HadronLevel::next( Event& event) {
         int nBefFrag = event.size();
 
         // String fragmentation of each colour singlet (sub)system.
-        if ( colConfig[iSub].massExcess > mStringMin ) {
-          if (!stringFrag.fragment( iSub, colConfig, event)) return false;
-
-        // Low-mass string treated separately. Tell if diffractive system.
-        } else {
-          bool isDiff = infoPtr->isDiffractiveA()
-                     || infoPtr->isDiffractiveB();
-          if (!ministringFrag.fragment( iSub, colConfig, event, isDiff))
-            return false;
-        }
+        for (auto &ptr: *fragPtrs)
+          if (!ptr->fragment(iSub, colConfig, event, isDiff)) return false;
 
         // Displace hadron vertices transversely from parton MPI + shower.
         if (doPartonVertex) partonVertexPtr->vertexHadrons( nBefFrag, event);
@@ -299,10 +302,30 @@ bool HadronLevel::next( Event& event) {
   // (e.g. Upsilon decay can cause create unstable hadrons).
   } while (decaysCausedHadronization);
 
+  // Allow for QED radiation to be added to the full post-hadronization system,
+  // after particle decays.
+  // Up to the shower to decide if everything was already handled during each
+  // particle decay, and/or if there is more to do now (e.g., interleaved QED
+  // radiation may be added only after all decay chains have been determined).
+  // Note: leptons from the perturbative stage were already showered during
+  // the showerQEDafterRemnants stage in PartonLevel and not included here.
+  if (doQED) {
+    // No 4th argument means shower must determine the starting scale itself.
+    timesDecPtr->showerQEDafterDecays( sizePartonLevel + 1, event.size(),
+      event );
+  }
+
   if (userHooksPtr && !userHooksPtr->onEndHadronLevel(*this, event)) {
     loggerPtr->ERROR_MSG("user event onEndHadronLevel failed");
     return false;
   }
+
+  // Calculate the hadronization in-situ flavor weights. This must be done
+  // after the decays, as these can use the flavor selector.
+  if (wgtsPtr != nullptr)
+    for (auto &parms : wgtsPtr->weightParms[WeightsFragmentation::Flav])
+      wgtsPtr->reweightValueByIndex(
+        parms.second, wgtsPtr->flavWeight(parms.first));
 
   // Done.
   return true;
@@ -508,7 +531,7 @@ bool HadronLevel::findSinglets(Event& event, bool keepJunctions) {
 
 //--------------------------------------------------------------------------
 
-// Extract rapidity pairs of string pieces.
+// Extract rapidity pairs of string pieces. Store in form [yCol, yAcol].
 
 vector< vector< pair<double,double> > > HadronLevel::rapidityPairs(
   Event& event) {
@@ -519,23 +542,58 @@ vector< vector< pair<double,double> > > HadronLevel::rapidityPairs(
     vector< pair<double,double> > rapsNow;
     vector<int> iPartons = colConfig[iSub].iParton;
 
-    // Special treatment for junction systems.
+    // Special treatment of junctions.
+    // Should not have unprocessed multi-junction systems at this point.
     if (colConfig[iSub].hasJunction) {
-      // Pick smallest and largest rapidity parton.
-      double ymi = 1e10;
-      double yma = -1e10;
-      for (int iP = 0; iP < int(iPartons.size()); iP++) {
-        int iQ = iPartons[iP];
-        if (iQ < 0) continue;
-        if (event[iQ].id() == 21) continue;
-        double yNow = yMax(event[iQ], MTINY);
-        if (yNow > yma) yma = yNow;
-        if (yNow < ymi) ymi = yNow;
-      }
-      rapsNow.push_back( make_pair(ymi, yma) );
 
-    // Normal strings. For closed gluon loop include first-last pair.
-    } else {
+      // Loop through iPartons and define junction legs.
+      int legBeg[3] = { 0, 0, 0};
+      int legEnd[3] = { 0, 0, 0};
+      int leg = -1;
+      for (int i = 0; i < int(iPartons.size()); ++i) {
+        if (iPartons[i] < 0) {
+          if (leg == 2) break;
+          legBeg[++leg] = i + 1;
+        }
+        else legEnd[leg] = i;
+      }
+
+      // Check if a junction or antijunction to determine flux direction.
+      bool antiJunc = ( event[iPartons[legEnd[0]]].colType() < 0 ) ? 1 : 0;
+
+      // Special treatment for the junction. Look at first parton on
+      // each leg and construct colourflow of type q --> q <-- q.
+      double yJun[3];
+      for (int i = 0; i < 3; ++i)
+        yJun[i] = yMax(event[iPartons[legBeg[i]]], MTINY);
+      int iMin = (yJun[0] < yJun[1]) ? 0 : 1;
+      int iMax = 1 - iMin;
+      if (yJun[2] < min(yJun[0], yJun[1])) iMin = 2;
+      else if (yJun[2] > max(yJun[0], yJun[1])) iMax = 2;
+      int iMid = 3 - iMin - iMax;
+      if (antiJunc) {
+        rapsNow.push_back( make_pair(yJun[iMid], yJun[iMin]) );
+        rapsNow.push_back( make_pair(yJun[iMid], yJun[iMax]) );
+      } else {
+        rapsNow.push_back( make_pair(yJun[iMin], yJun[iMid]) );
+        rapsNow.push_back( make_pair(yJun[iMax], yJun[iMid]) );
+      }
+
+      // Do standard treatment on other partons on junction legs.
+      for (int i = 0; i < 3; ++i) {
+        for (int j = legBeg[i]; j < legEnd[i] - 1; ++j) {
+          int i1 = iPartons[j];
+          int i2 = iPartons[j + 1];
+          double y1  = yMax(event[i1], MTINY);
+          double y2  = yMax(event[i2], MTINY);
+          if (!antiJunc) swap(y1, y2);
+          rapsNow.push_back( make_pair(y1, y2) );
+        }
+      }
+    }
+
+    // Normal string treatment.
+    else {
       int size = int(iPartons.size());
       int end  = size - (colConfig[iSub].isClosed ? 0 : 1);
       for (int iP = 0; iP < end; iP++) {
@@ -543,9 +601,11 @@ vector< vector< pair<double,double> > > HadronLevel::rapidityPairs(
         int    i2  = iPartons[(iP+1)%size];
         double y1  = yMax(event[i1], MTINY);
         double y2  = yMax(event[i2], MTINY);
-        double ymi = min(y1, y2);
-        double yma = max(y1, y2);
-        rapsNow.push_back( make_pair(ymi, yma) );
+
+        // Check flux direction of current string piece and store accordingly.
+        if (event[i1].col() == event[i2].acol() && event[i1].col() != 0)
+          rapsNow.push_back( make_pair(y1, y2) );
+        else rapsNow.push_back( make_pair(y2, y1) );
       }
     }
     rapPairs.push_back(rapsNow);

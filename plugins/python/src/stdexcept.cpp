@@ -1,6 +1,7 @@
 #include <Pythia8/Basics.h>
 #include <Pythia8/BeamShape.h>
 #include <Pythia8/Event.h>
+#include <Pythia8/FragmentationModel.h>
 #include <Pythia8/HIInfo.h>
 #include <Pythia8/HINucleusModel.h>
 #include <Pythia8/HeavyIons.h>
@@ -34,6 +35,7 @@
 #include <functional>
 #include <string>
 #include <Pythia8/UserHooks.h>
+#include <Pythia8/SplittingsOnia.h>
 #include <Pythia8/HeavyIons.h>
 #include <Pythia8/BeamShape.h>
 #include <pybind11/stl.h>

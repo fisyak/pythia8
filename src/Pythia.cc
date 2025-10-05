@@ -1,5 +1,5 @@
 // Pythia.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -7,10 +7,10 @@
 
 #include "Pythia8/Pythia.h"
 #include "Pythia8/ColourReconnection.h"
-#include "Pythia8/Dire.h"
 #include "Pythia8/HeavyIons.h"
 #include "Pythia8/History.h"
 #include "Pythia8/StringInteractions.h"
+#include "Pythia8/ThermalFragmentation.h"
 #include "Pythia8/Vincia.h"
 #include "Pythia8/Plugins.h"
 
@@ -24,7 +24,7 @@ namespace Pythia8 {
 
 // The current Pythia (sub)version number, to agree with XML version.
 const double Pythia::VERSIONNUMBERHEAD = PYTHIA_VERSION;
-const double Pythia::VERSIONNUMBERCODE = 8.310;
+const double Pythia::VERSIONNUMBERCODE = 8.316;
 
 //--------------------------------------------------------------------------
 
@@ -51,7 +51,7 @@ Pythia::Pythia(string xmlDir, bool printBanner) {
       != '/')) xmlPath += "/";
 
   // Read in files with all flags, modes, parms and words.
-  settings.initPtrs(&logger);
+  settings.initPtrs(&logger, &particleData, &particleDataBuffer);
   string initFile = xmlPath + "Index.xml";
   isConstructed = settings.init( initFile);
   if (!isConstructed) {
@@ -61,9 +61,6 @@ Pythia::Pythia(string xmlDir, bool printBanner) {
 
   // Save XML path in settings.
   settings.addWord("xmlPath", xmlPath);
-
-  // Allow include files to be saved to settings.
-  settings.addWord("include", "");
 
   // Check that XML and header version numbers match code version number.
   if (!checkVersion()) return;
@@ -102,9 +99,12 @@ Pythia::Pythia(Settings& settingsIn, ParticleData& particleDataIn,
   // Copy XML path from existing Settings database.
   xmlPath = settingsIn.word("xmlPath");
 
+  // Copy particleData database.
+  particleData = particleDataIn;
+
   // Copy settings database and redirect pointers.
   settings = settingsIn;
-  settings.initPtrs(&logger);
+  settings.initPtrs(&logger, &particleData, &particleDataBuffer);
   isConstructed = settings.getIsInit();
   if (!isConstructed) {
     logger.ABORT_MSG("settings unavailable");
@@ -114,8 +114,7 @@ Pythia::Pythia(Settings& settingsIn, ParticleData& particleDataIn,
   // Check XML and header version numbers match code version number.
   if (!checkVersion()) return;
 
-  // Copy particleData database and redirect pointers.
-  particleData = particleDataIn;
+  // Redirect pointers in particleData.
   particleData.initPtrs( &infoPrivate);
   isConstructed = particleData.getIsInit();
   if (!isConstructed) {
@@ -183,6 +182,7 @@ void Pythia::initPtrs() {
   infoPrivate.setPtrs( &settings, &particleData, &logger, &rndm, &beamSetup,
     &coupSM, &coupSUSY, &partonSystems, &sigmaTot, &sigmaCmb,
     &hadronWidths, &weightContainer);
+  infoPrivate.mutexPtr = &mainMutex;
   registerPhysicsBase(processLevel);
   registerPhysicsBase(partonLevel);
   registerPhysicsBase(trialPartonLevel);
@@ -193,8 +193,27 @@ void Pythia::initPtrs() {
   registerPhysicsBase(sigmaCmb);
   registerPhysicsBase(hadronWidths);
   registerPhysicsBase(junctionSplitting);
-  registerPhysicsBase(rHadrons);
   registerPhysicsBase(beamSetup);
+
+}
+
+//--------------------------------------------------------------------------
+
+// Initialise new Pythia fragmentation objects (after settings have been read).
+
+void Pythia::initFragPtrs() {
+
+  // Create the fragmentation model pointers (register the
+  // fragmentation model vector after user interactions).
+  rHadronsPtr = make_shared<RHadrons>();
+  fragPtr = make_shared<LundFragmentation>();
+  registerPhysicsBase(*rHadronsPtr);
+  registerPhysicsBase(*fragPtr);
+  FragmentationModelPtr mainFragPtr = fragPtr;
+  if (settings.mode("Fragmentation:model") == 1)
+    mainFragPtr = make_shared<ThermalFragmentation>();
+  fragPtrs = {make_shared<HiddenValleyFragmentation>(), rHadronsPtr,
+              mainFragPtr};
 
 }
 
@@ -207,8 +226,9 @@ void Pythia::initPlugins() {
   // Create map of pointers to pass to Pythia.
   map<string, PDFPtr> pdfs = beamSetup.getPDFPtr();
 
-  // Store the previous plugin type.
+  // Store the previous plugin type and index.
   string objLast;
+  int idxLast = -1;
 
   // Loop over the plugins.
   for (string plugin : settings.wvec("Init:plugins")) {
@@ -216,6 +236,7 @@ void Pythia::initPlugins() {
     // Split by the plugin entry by the "::" delimiter.
     vector<string> vals;
     size_t pos(0);
+    int idx(0);
     string cmnd(plugin);
     while (pos != string::npos) {
       pos = plugin.find("::");
@@ -262,10 +283,21 @@ void Pythia::initPlugins() {
       continue;
     }
 
-    // Check if the plugin should be set or added.
+    // Handle insertion of plugin.
+    if (key.find("insert(") == 0) {
+      pos = key.find(")");
+      if (pos == string::npos) {
+        logger.ERROR_MSG("insert statements must be of the form insert(i)");
+        continue;
+      }
+      idx = stoi(key.substr(6, pos));
+      key = "insert";
+    }
+
+    // Check if the plugin should be set, added, or inserted.
     if (key == "default") key = "set";
     if (key != "set" && key != "add") {
-      logger.ERROR_MSG("the third argument must be set or add");
+      logger.ERROR_MSG("the third argument must be set, add, or insert(i)");
       continue;
     }
 
@@ -281,6 +313,8 @@ void Pythia::initPlugins() {
     } else if (objType == typeid(UserHooks).name()) {
       if (key == "add") addUserHooksPtr(
         make_plugin<UserHooks>(libName, className, this, fileName, sub));
+      else if (key == "insert") insertUserHooksPtr(idx,
+        make_plugin<UserHooks>(libName, className, this, fileName, sub));
       else setUserHooksPtr(
         make_plugin<UserHooks>(libName, className, this, fileName, sub));
     } else if (objType == typeid(Merging).name()) {setMergingPtr(
@@ -292,17 +326,31 @@ void Pythia::initPlugins() {
     } else if (objType == typeid(SigmaProcess).name()) {
       if (key == "add") addSigmaPtr(
         make_plugin<SigmaProcess>(libName, className, this, fileName, sub));
+      else if (key == "insert") insertSigmaPtr(idx,
+        make_plugin<SigmaProcess>(libName, className, this, fileName, sub));
       else setSigmaPtr(
         make_plugin<SigmaProcess>(libName, className, this, fileName, sub));
     } else if (objType == typeid(PhaseSpace).name() &&
       objLast == typeid(SigmaProcess).name()) {
-      SigmaProcessPtr sigmaPtr = sigmaPtrs.back();
-      if (key == "add") {sigmaPtrs.pop_back(); phaseSpacePtrs.pop_back();}
-      else {sigmaPtrs.resize(0); phaseSpacePtrs.resize(0);}
-      addSigmaPtr(sigmaPtr,
-        make_plugin<PhaseSpace>(libName, className, this, fileName, sub));
+      if (key == "insert") {
+        if (idx != idxLast) {
+          logger.ERROR_MSG("index must match previous SigmaProcess index");
+          continue;
+        }
+        if (idx < 0 || idx < (int)phaseSpacePtrs.size()) continue;
+        phaseSpacePtrs.insert(phaseSpacePtrs.begin() + idx,
+          make_plugin<PhaseSpace>(libName, className, this, fileName, sub));
+      } else {
+        SigmaProcessPtr sigmaPtr = sigmaPtrs.back();
+        if (key == "add") {sigmaPtrs.pop_back(); phaseSpacePtrs.pop_back();}
+        else {sigmaPtrs.resize(0); phaseSpacePtrs.resize(0);}
+        addSigmaPtr(sigmaPtr,
+          make_plugin<PhaseSpace>(libName, className, this, fileName, sub));
+      }
     } else if (objType == typeid(ResonanceWidths).name()) {
       if (key == "add") addResonancePtr(
+       make_plugin<ResonanceWidths>(libName, className, this, fileName, sub));
+      else if (key == "insert") insertResonancePtr(idx,
        make_plugin<ResonanceWidths>(libName, className, this, fileName, sub));
       else setResonancePtr(
        make_plugin<ResonanceWidths>(libName, className, this, fileName, sub));
@@ -312,10 +360,14 @@ void Pythia::initPlugins() {
         make_plugin<HeavyIons>(libName, className, this, fileName, sub));
     } else if (objType == typeid(HIUserHooks).name()) {setHIHooks(
         make_plugin<HIUserHooks>(libName, className, this, fileName, sub));
+    } else if (objType == typeid(FragmentationModel).name()) {
+      setFragmentationPtr(make_plugin<FragmentationModel>(
+          libName, className, this, fileName, sub));
     } else {logger.ERROR_MSG("the class " + demangle(objType) + " cannot be "
         "passed to a Pythia object");
     }
     objLast = objType;
+    idxLast = idx;
   }
 
   // Set the PDF pointers.
@@ -337,9 +389,14 @@ bool Pythia::checkVersion() {
   isConstructed = (abs(versionNumberXML - VERSIONNUMBERCODE) < 0.0005);
   if (!isConstructed) {
     ostringstream errCode;
-    errCode << fixed << setprecision(3) << ": in code " << VERSIONNUMBERCODE
+    errCode << fixed << setprecision(3) << "in code " << VERSIONNUMBERCODE
             << " but in XML " << versionNumberXML;
-    logger.ABORT_MSG("unmatched version numbers", errCode.str());
+    logger.ABORT_MSG("unmatched version numbers,", errCode.str());
+    logger.ABORT_MSG("PYTHIA8DATA is " + string(getenv("PYTHIA8DATA") ?
+        "set" : "not set"), "and using XML path " + xmlPath);
+    if (getenv("PYTHIA8DATA"))
+      logger.ABORT_MSG("try unsetting PYTHIA8DATA by running"
+        " \"export PYTHIA8DATA=''\"");
     return false;
   }
 
@@ -360,132 +417,6 @@ bool Pythia::checkVersion() {
 
 //--------------------------------------------------------------------------
 
-// Read in one update for a setting or particle data from a single line.
-
-bool Pythia::readString(string line, bool warn, int subrun) {
-
-  // Check that constructor worked.
-  if (!isConstructed) return false;
-
-  // If empty line then done.
-  if (line.find_first_not_of(" \n\t\v\b\r\f\a") == string::npos) return true;
-
-  // If Settings input stretches over several lines then continue with it.
-  if (settings.unfinishedInput()) return settings.readString(line, warn);
-
-  // If first character is not a letter/digit, then taken to be a comment.
-  int firstChar = line.find_first_not_of(" \n\t\v\b\r\f\a");
-  if (!isalnum(line[firstChar])) return true;
-
-  // Send on particle data to the ParticleData database.
-  if (isdigit(line[firstChar])) {
-    bool passed = particleData.readString(line, warn);
-    if (passed) particleDataBuffer << line << endl;
-    return passed;
-  }
-
-  // Include statements.
-  if (line.find("include") == 0 && settings.readString(line, warn) &&
-    word("include") != "") {
-
-    // Try normal path first.
-    string fileName = word("include");
-    settings.word("include", "");
-    ifstream isUser(fileName.c_str());
-    if (!isUser.good()) {
-
-      // Split the paths from PYTHIA8CMND.
-      vector<string> paths;
-      size_t pos(0);
-      const char* envChar = getenv("PYTHIA8CMND");
-      string envPath = envChar ? envChar : "";
-      while (envPath != "" && pos != string::npos) {
-        pos = envPath.find(":");
-        paths.push_back(envPath.substr(0, pos));
-        envPath = envPath.substr(pos + 1);
-      }
-
-      // Add the Pythia settings directory.
-      paths.push_back(word("xmlPath"). substr(0, xmlPath.length() - 7)
-        + "settings");
-
-      // Try the different paths.
-      for (string path : paths) {
-        ifstream isPath((path + "/" + fileName).c_str());
-        if (isPath.good()) return readFile(isPath, warn, subrun);
-      }
-      logger.ERROR_MSG("did not find file", fileName);
-      return false;
-    } else return readFile(isUser, warn, subrun);
-  }
-
-  // Everything else sent on to Settings.
-  return settings.readString(line, warn);
-
-}
-
-//--------------------------------------------------------------------------
-
-// Read in updates for settings or particle data from user-defined file.
-
-bool Pythia::readFile(string fileName, bool warn, int subrun) {
-
-  // Check that constructor worked.
-  if (!isConstructed) return false;
-
-  // Open file for reading.
-  ifstream is(fileName.c_str());
-  if (!is.good()) {
-    logger.ERROR_MSG("did not find file", fileName);
-    return false;
-  }
-
-  // Hand over real work to next method.
-  return readFile( is, warn, subrun);
-
-}
-
-//--------------------------------------------------------------------------
-
-// Read in updates for settings or particle data
-// from user-defined stream (or file).
-
-bool Pythia::readFile(istream& is, bool warn, int subrun) {
-
-  // Check that constructor worked.
-  if (!isConstructed) return false;
-
-  // Read in one line at a time.
-  string line;
-  bool isCommented = false;
-  bool accepted = true;
-  int subrunNow = SUBRUNDEFAULT;
-  while ( getline(is, line) ) {
-
-    // Check whether entering, leaving or inside commented-commands section.
-    int commentLine = readCommented( line);
-    if      (commentLine == +1)  isCommented = true;
-    else if (commentLine == -1)  isCommented = false;
-    else if (isCommented) ;
-
-    else {
-      // Check whether entered new subrun.
-      int subrunLine = readSubrun( line, warn);
-      if (subrunLine >= 0) subrunNow = subrunLine;
-
-      // Process the line if in correct subrun.
-      if ( (subrunNow == subrun || subrunNow == SUBRUNDEFAULT)
-         && !readString( line, warn) ) accepted = false;
-    }
-
-  // Reached end of input file.
-  };
-  return accepted;
-
-}
-
-//--------------------------------------------------------------------------
-
 // Routine to initialize with the variable values of the Beams kind.
 
 bool Pythia::init() {
@@ -497,12 +428,18 @@ bool Pythia::init() {
     return false;
   }
 
+  // Set info that we are in the initialization stage.
+  infoPrivate.setInInit(true);
+
   // Check if this is the first call to init.
   if (isInit)
     logger.WARNING_MSG("be aware that successive "
       "calls to init() do not clear previous settings");
-  // Only create plugins the first time.
-  else initPlugins();
+  // Only create fragmentation models and plugins the first time.
+  else {
+    initFragPtrs();
+    initPlugins();
+  }
   isInit = false;
 
   // Early catching of heavy ion mode.
@@ -556,6 +493,7 @@ bool Pythia::init() {
   bool doKTMerging       = flag("Merging:doKTMerging");
   bool doPTLundMerging   = flag("Merging:doPTLundMerging");
   bool doCutBasedMerging = flag("Merging:doCutBasedMerging");
+  bool doDynMerging      = flag("Merging:doDynamicMerging");
   // Set up values related to unitarised CKKW merging
   bool doUMEPSTree       = flag("Merging:doUMEPSTree");
   bool doUMEPSSubt       = flag("Merging:doUMEPSSubt");
@@ -569,7 +507,7 @@ bool Pythia::init() {
   bool doUNLOPSSubt      = flag("Merging:doUNLOPSSubt");
   bool doUNLOPSSubtNLO   = flag("Merging:doUNLOPSSubtNLO");
   bool doXSectionEst     = flag("Merging:doXSectionEstimate");
-  doMerging = doUserMerging || doMGMerging || doKTMerging
+  doMerging = doUserMerging || doMGMerging || doKTMerging || doDynMerging
     || doPTLundMerging || doCutBasedMerging || doUMEPSTree || doUMEPSSubt
     || doNL3Tree || doNL3Loop || doNL3Subt || doUNLOPSTree
     || doUNLOPSLoop || doUNLOPSSubt || doUNLOPSSubtNLO || doXSectionEst;
@@ -634,6 +572,18 @@ bool Pythia::init() {
 
   if ( userHooksPtr ) {
     infoPrivate.userHooksPtr = userHooksPtr;
+
+    // Register the individual user hooks so that when PythiaParallel
+    // calls onStat, it has access to them all. This should be migrated
+    // to UserHooksVector::onStat.
+    shared_ptr<UserHooksVector> uhv =
+      dynamic_pointer_cast<UserHooksVector>(userHooksPtr);
+    if ( uhv ) {
+      for (shared_ptr<UserHooks>& uhp : uhv->hooks)
+        registerPhysicsBase(*uhp);
+    }
+
+    // Register the vector itself.
     registerPhysicsBase(*userHooksPtr);
     pushInfo();
     if (!userHooksPtr->initAfterBeams()) {
@@ -717,32 +667,6 @@ bool Pythia::init() {
     return false;
   }
 
-  // Turn off central diffraction for VMD processes.
-  if (doVMDsideA || doVMDsideB) {
-    if (doCentralDiff) {
-      logger.WARNING_MSG(
-        "central diffractive events not implemented for gamma + p/gamma");
-      return false;
-    }
-    if (doSoftQCDall) {
-      logger.WARNING_MSG(
-        "central diffractive events not implemented for gamma + p/gamma");
-      settings.flag("SoftQCD:all", false);
-      settings.flag("SoftQCD:elastic", true);
-      settings.flag("SoftQCD:nonDiffractive", true);
-      settings.flag("SoftQCD:singleDiffractive", true);
-      settings.flag("SoftQCD:doubleDiffractive", true);
-    }
-    if (doSoftQCDinel) {
-      logger.WARNING_MSG(
-        "central diffractive events not implemented for gamma + p/gamma");
-      settings.flag("SoftQCD:inelastic", false);
-      settings.flag("SoftQCD:nonDiffractive", true);
-      settings.flag("SoftQCD:singleDiffractive", true);
-      settings.flag("SoftQCD:doubleDiffractive", true);
-    }
-  }
-
   // Check that combinations of settings are allowed; change if not.
   checkSettings();
 
@@ -778,7 +702,7 @@ bool Pythia::init() {
   }
 
   // Set up R-hadrons particle data, where relevant.
-  rHadrons.init();
+  rHadronsPtr->init();
 
   // Set up and initialize setting of parton production vertices.
   if (doPartonVertex) {
@@ -808,14 +732,13 @@ bool Pythia::init() {
   // Set up and initialize the ShowerModel (if not provided by user).
   if ( !showerModelPtr ) {
     if ( showerModel == 2 ) showerModelPtr = make_shared<Vincia>();
-    else if (showerModel == 3 ) showerModelPtr = make_shared<Dire>();
     else showerModelPtr = make_shared<SimpleShowerModel>();
   }
 
   // Register shower model as physicsBase object (also sets pointers)
   registerPhysicsBase(*showerModelPtr);
 
-  // Initialise shower model
+  // Initialise shower model.
   if ( !showerModelPtr->init(mergingPtr, mergingHooksPtr,
     partonVertexPtr, &weightContainer) ) {
     logger.ABORT_MSG("shower model failed to initialise");
@@ -860,8 +783,34 @@ bool Pythia::init() {
   if (!beamSetup.initBeams(doNonPert, flavSelPtr)) return false;
 
   // Spread information on beam switching from beamSetup.
- if ( beamSetup.allowIDAswitch)
-   partonLevel.initSwitchID( beamSetup.idAList);
+  if ( beamSetup.allowIDAswitch)
+    partonLevel.initSwitchID( beamSetup.idAList);
+
+  // Turn off central diffraction for VMD processes.
+  if (beamSetup.getVMDsideA() || beamSetup.getVMDsideB()) {
+    if (doCentralDiff) {
+      logger.WARNING_MSG(
+        "central diffractive events not implemented for gamma + p/gamma");
+      return false;
+    }
+    if (doSoftQCDall) {
+      logger.WARNING_MSG(
+        "central diffractive events not implemented for gamma + p/gamma");
+      settings.flag("SoftQCD:all", false);
+      settings.flag("SoftQCD:elastic", true);
+      settings.flag("SoftQCD:nonDiffractive", true);
+      settings.flag("SoftQCD:singleDiffractive", true);
+      settings.flag("SoftQCD:doubleDiffractive", true);
+    }
+    if (doSoftQCDinel) {
+      logger.WARNING_MSG(
+        "central diffractive events not implemented for gamma + p/gamma");
+      settings.flag("SoftQCD:inelastic", false);
+      settings.flag("SoftQCD:nonDiffractive", true);
+      settings.flag("SoftQCD:singleDiffractive", true);
+      settings.flag("SoftQCD:doubleDiffractive", true);
+    }
+  }
 
   // Send info/pointers to process level for initialization.
   if ( doProcessLevel ) {
@@ -877,7 +826,6 @@ bool Pythia::init() {
     string message = "Fail to initialize ";
     if      (showerModel==1) message += "default";
     else if (showerModel==2) message += "Vincia";
-    else if (showerModel==3) message += "Dire";
     message += " shower.";
     logger.ABORT_MSG(message);
     return false;
@@ -892,7 +840,7 @@ bool Pythia::init() {
 
   // Send info/pointers to parton level for initialization.
   if ( doPartonLevel && doProcessLevel && !partonLevel.init(timesDecPtr,
-    timesPtr, spacePtr, &rHadrons, mergingHooksPtr,
+    timesPtr, spacePtr, rHadronsPtr, mergingHooksPtr,
     partonVertexPtr, stringInteractionsPtr, false) ) {
     logger.ABORT_MSG("partonLevel initialization failed");
     return false;
@@ -905,7 +853,7 @@ bool Pythia::init() {
   // Alternatively only initialize final-state showers in resonance decays.
   if ( (!doProcessLevel || !doPartonLevel)
     && (!doNonPert || doSoftQCD) ) partonLevel.init(
-    timesDecPtr, nullptr, nullptr, &rHadrons, nullptr,
+    timesDecPtr, nullptr, nullptr, rHadronsPtr, nullptr,
     partonVertexPtr, stringInteractionsPtr, false);
 
   // Set up shower variation groups if enabled
@@ -915,7 +863,7 @@ bool Pythia::init() {
 
   // Send info/pointers to parton level for trial shower initialization.
   if ( doMerging && !trialPartonLevel.init( timesDecPtr, timesPtr,
-    spacePtr, &rHadrons, mergingHooksPtr, partonVertexPtr,
+    spacePtr, rHadronsPtr, mergingHooksPtr, partonVertexPtr,
     stringInteractionsPtr, true) ) {
     logger.ABORT_MSG("trialPartonLevel initialization failed");
     return false;
@@ -927,10 +875,13 @@ bool Pythia::init() {
     mergingPtr->init();
   }
 
+  // Register fragmentation models.
+  for (auto &ptr : fragPtrs) registerPhysicsBase(*ptr);
+
   // Send info/pointers to hadron level for initialization.
   // Note: forceHadronLevel() can come, so we must always initialize.
-  if ( !hadronLevel.init( timesDecPtr, &rHadrons, decayHandlePtr,
-    handledParticles, stringInteractionsPtr, partonVertexPtr,
+  if ( !hadronLevel.init( timesDecPtr, rHadronsPtr, fragPtr, &fragPtrs,
+    decayHandlePtr, handledParticles, stringInteractionsPtr, partonVertexPtr,
     sigmaLowEnergy, nucleonExcitations) ) {
     logger.ABORT_MSG("hadronLevel initialization failed");
     return false;
@@ -1032,6 +983,12 @@ bool Pythia::next(int procType) {
     return false;
   }
 
+  // Set info that we are no longer in the initialization stage.
+  infoPrivate.setInInit(false);
+
+  // Save the random state for debugging purposes.
+  infoPrivate.currentEventRndmState = rndm.getState();
+
   // Flexible-use call at the beginning of each new event.
   beginEvent();
 
@@ -1113,23 +1070,25 @@ bool Pythia::next(int procType) {
     || beamSetup.doVertexSpread) beamSetup.nextKinematics();
 
   // Simplified special treatment for low-energy nonperturbative collisions.
-  double eMinPertNow = eMinPert
-    + 2. * max( 0., particleData.m0(beamSetup.idA) - particleData.m0(2212))
-    + 2. * max( 0., particleData.m0(beamSetup.idB) - particleData.m0(2212));
-  double pertRate = (beamSetup.eCM - eMinPertNow) / eWidthPert;
-  if ( (doNonPert && !doSoftQCD)
-    || ( beamSetup.doVarEcm && pertRate < 10
-      && (pertRate <= 0 || exp( -pertRate ) > rndm.flat())) ) {
-    bool nextNP = nextNonPert();
+  if (doLowEnergy) {
+    double eMinPertNow = eMinPert
+      + 2. * max( 0., particleData.m0(beamSetup.idA) - particleData.m0(2212))
+      + 2. * max( 0., particleData.m0(beamSetup.idB) - particleData.m0(2212));
+    double pertRate = (beamSetup.eCM - eMinPertNow) / eWidthPert;
+    if ( (doNonPert && !doSoftQCD)
+      || ( beamSetup.doVarEcm && pertRate < 10
+        && (pertRate <= 0 || exp( -pertRate ) > rndm.flat())) ) {
+      bool nextNP = nextNonPert();
 
-    // Optionally check final event for problems.
-    if (nextNP && checkEvent && !check()) {
-      logger.ERROR_MSG("check of event revealed problems");
-      endEvent(PhysicsBase::CHECK_FAILED);
-      return false;
+      // Optionally check final event for problems.
+      if (nextNP && checkEvent && !check()) {
+        logger.ERROR_MSG("check of event revealed problems");
+        endEvent(PhysicsBase::CHECK_FAILED);
+        return false;
+      }
+      endEvent(nextNP ? PhysicsBase::COMPLETE : PhysicsBase::LOWENERGY_FAILED);
+      return nextNP;
     }
-    endEvent(nextNP ? PhysicsBase::COMPLETE : PhysicsBase::LOWENERGY_FAILED);
-    return nextNP;
   }
 
   // Outer loop over hard processes; only relevant for user-set vetoes.
@@ -1330,7 +1289,7 @@ bool Pythia::next(int procType) {
       }
 
       // If R-hadrons have been formed, then (optionally) let them decay.
-      if (decayRHadrons && rHadrons.exist() && !doRHadronDecays()) {
+      if (decayRHadrons && rHadronsPtr->exist() && !doRHadronDecays()) {
         logger.ERROR_MSG("decayRHadrons failed; try again");
         physical = false;
         continue;
@@ -1387,6 +1346,28 @@ bool Pythia::next(int procType) {
   endEvent(PhysicsBase::COMPLETE);
   return true;
 
+}
+
+//--------------------------------------------------------------------------
+
+// Switch to new beam particle identities.
+
+bool Pythia::setBeamIDs(int idAin, int idBin) {
+  if (!isInit) {
+    logger.ERROR_MSG("Pythia is not properly initialized");
+    return false;
+  }
+
+  if (doHeavyIons)
+    return heavyIonsPtr->setBeamIDs(idAin, idBin);
+
+  if (!beamSetup.setBeamIDs( idAin, idBin))
+    return false;
+  if (beamSetup.hasSwitchedIDs) {
+    processLevel.updateBeamIDs();
+    partonLevel.setBeamID(beamSetup.iPDFAsave);
+  }
+  return true;
 }
 
 //--------------------------------------------------------------------------
@@ -1477,20 +1458,6 @@ void Pythia::endEvent(PhysicsBase::Status status) {
   // Loop through all PhysicsBase-derived objects.
   for ( auto physicsPtr : physicsPtrs ) physicsPtr->endEvent(status);
 
-  // Update the event weight by the Dire shower weight when relevant.
-  // Code to be moved to the Dire endEvent method.
-  /*
-  if (useNewDire) {
-    // Retrieve the shower weight.
-    direPtr->weightsPtr->calcWeight(0.);
-    direPtr->weightsPtr->reset();
-    double pswt = direPtr->weightsPtr->getShowerWeight();
-    // Multiply the shower weight to the event weight.
-    double wt = infoPrivate.weight();
-    infoPrivate.updateWeight(wt * pswt);
-  }
-  */
-
   // Done.
   return;
 
@@ -1556,7 +1523,8 @@ bool Pythia::forceHadronLevel(bool findJunctions) {
 
     // Allow up to ten tries for CR.
     for (int iTry = 0; iTry < NTRY; ++ iTry) {
-      if ( colourReconnectionPtr ) colourReconnectionPtr->next(event, 0);
+      if ( stringInteractionsPtr->getColourReconnections() )
+         stringInteractionsPtr->getColourReconnections()->next(event, 0);
       if (junctionSplitting.checkColours(event)) {
         colCorrect = true;
         break;
@@ -1700,10 +1668,10 @@ bool Pythia::nextNonPert(int procType) {
 bool Pythia::doRHadronDecays( ) {
 
   // Check if R-hadrons exist to be processed.
-  if ( !rHadrons.exist() ) return true;
+  if ( !rHadronsPtr->exist() ) return true;
 
   // Do the R-hadron decay itself.
-  if ( !rHadrons.decay( event) ) return false;
+  if ( !rHadronsPtr->decay( event) ) return false;
 
   // Perform showers in resonance decay chains.
   if ( !partonLevel.resonanceShowers( process, event, false) ) return false;
@@ -1724,6 +1692,7 @@ void Pythia::stat() {
 
   if ( doHeavyIons ) {
     heavyIonsPtr->stat();
+    for ( auto physicsPtr : physicsPtrs ) physicsPtr->stat();
     return;
   }
 
@@ -1812,14 +1781,12 @@ void Pythia::banner() {
        << " consisting of:                       |  | \n"
        << " |  |                                        "
        << "                                      |  | \n"
-       << " |  |   Christian Bierlich, Naomi Cooke, Nish"
-       << "ita Desai, Leif Gellersen,            |  | \n"
+       << " |  |   Javira Altmann, Christian Bierlich, N"
+       << "aomi Cooke, Nishita Desai,            |  | \n"
        << " |  |   Ilkka Helenius, Philip Ilten, Leif Lo"
        << "nnblad, Stephen Mrenna,               |  | \n"
-       << " |  |   Stefan Prestel, Christian Preuss, Tor"
-       << "bjorn Sjostrand, Peter Skands,        |  | \n"
-       << " |  |   Marius Utheim and Rob Verheyen.      "
-       << "                                      |  | \n"
+       << " |  |   Christian Preuss, Torbjorn Sjostrand,"
+       << " and Peter Skands.                    |  | \n"
        << " |  |                                        "
        << "                                      |  | \n"
        << " |  |   The complete list of authors, includi"
@@ -1839,9 +1806,11 @@ void Pythia::banner() {
        << " |  |                                        "
        << "                                      |  | \n"
        << " |  |   PYTHIA is released under the GNU Gene"
-       << "ral Public Licence version 2 or later.|  | \n"
-       << " |  |   Please respect the MCnet Guidelines f"
-       << "or Event Generator Authors and Users. |  | \n"
+       << "ral Public Licence version 2          |  | \n"
+       << " |  |   or later. Please respect the MCnet Gu"
+       << "idelines for Generator Authors        |  | \n"
+       << " |  |   and Users.                           "
+       << "                                      |  | \n"
        << " |  |                                        "
        << "                                      |  | \n"
        << " |  |   Disclaimer: this program comes withou"
@@ -1850,7 +1819,7 @@ void Pythia::banner() {
        << " when interpreting results.           |  | \n"
        << " |  |                                        "
        << "                                      |  | \n"
-       << " |  |   Copyright (C) 2023 Torbjorn Sjostrand"
+       << " |  |   Copyright (C) 2025 Torbjorn Sjostrand"
        << "                                      |  | \n"
        << " |  |                                        "
        << "                                      |  | \n"
@@ -1862,74 +1831,6 @@ void Pythia::banner() {
        << "                                         | \n"
        << " *-------------------------------------------"
        << "-----------------------------------------* \n" << endl;
-
-}
-
-//--------------------------------------------------------------------------
-
-// Check for lines in file that mark the beginning of new subrun.
-
-int Pythia::readSubrun(string line, bool warn) {
-
-  // If empty line then done.
-  int subrunLine = SUBRUNDEFAULT;
-  if (line.find_first_not_of(" \n\t\v\b\r\f\a") == string::npos)
-    return subrunLine;
-
-  // If first character is not a letter, then done.
-  string lineNow = line;
-  int firstChar = lineNow.find_first_not_of(" \n\t\v\b\r\f\a");
-  if (!isalpha(lineNow[firstChar])) return subrunLine;
-
-  // Replace an equal sign by a blank to make parsing simpler.
-  while (lineNow.find("=") != string::npos) {
-    int firstEqual = lineNow.find_first_of("=");
-    lineNow.replace(firstEqual, 1, " ");
-  }
-
-  // Get first word of a line.
-  istringstream splitLine(lineNow);
-  string name;
-  splitLine >> name;
-
-  // Replace two colons by one (:: -> :) to allow for such mistakes.
-  while (name.find("::") != string::npos) {
-    int firstColonColon = name.find_first_of("::");
-    name.replace(firstColonColon, 2, ":");
-  }
-
-  // Convert to lowercase. If no match then done.
-  if (toLower(name) != "main:subrun") return subrunLine;
-
-  // Else find new subrun number and return it.
-  splitLine >> subrunLine;
-  if (!splitLine) {
-    if (warn) cout << "\n PYTHIA Warning: Main:subrun number not"
-        << " recognized; skip:\n   " << line << endl;
-    subrunLine = SUBRUNDEFAULT;
-  }
-  return subrunLine;
-
-}
-
-//--------------------------------------------------------------------------
-
-// Check for lines in file that mark the beginning or end of commented section.
-// Return +1 for beginning, -1 for end, 0 else.
-
-int Pythia::readCommented(string line) {
-
-  // If less than two nontrivial characters on line then done.
-  if (line.find_first_not_of(" \n\t\v\b\r\f\a") == string::npos) return 0;
-  int firstChar = line.find_first_not_of(" \n\t\v\b\r\f\a");
-  if (int(line.size()) < firstChar + 2) return 0;
-
-  // If first two nontrivial characters are /* or */ then done.
-  if (line.substr(firstChar, 2) == "/*") return +1;
-  if (line.substr(firstChar, 2) == "*/") return -1;
-
-  // Else done.
-  return 0;
 
 }
 

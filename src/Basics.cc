@@ -1,5 +1,5 @@
 // Basics.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -90,6 +90,100 @@ void Rndm::init(int seedIn) {
 
 //--------------------------------------------------------------------------
 
+// Generate random numbers according to exp(-x).
+// Must be defined before possible RNG debugging methods.
+
+double Rndm::exp() { return -log(flat()) ;}
+
+//--------------------------------------------------------------------------
+
+// Pick one option among vector of (positive) probabilities.
+// Must be defined before possible RNG debugging methods.
+
+int Rndm::pick(const vector<double>& prob) {
+
+  double work = 0.;
+  for (int i = 0; i < int(prob.size()); ++i) work += prob[i];
+  work *= flat();
+  int index = -1;
+  do work -= prob[++index];
+  while (work > 0. && index < int(prob.size()));
+  return index;
+
+}
+
+//--------------------------------------------------------------------------
+
+// Use standard random number generation, rather than debug versions.
+
+#include "Pythia8/RngDebug.h"
+
+//--------------------------------------------------------------------------
+
+// Define debug random number calls.
+
+#ifdef RNGDEBUG
+// Flags to control debugging behaviour.
+bool        Rndm::debugNow       = true;
+bool        Rndm::debugLocation  = true;
+bool        Rndm::debugIndex     = false;
+int         Rndm::debugPrecision = 4;
+int         Rndm::debugCall      = 0;
+set<string> Rndm::debugStarts    = {};
+set<string> Rndm::debugEnds      = {};
+set<string> Rndm::debugContains  = {};
+set<string> Rndm::debugMatches   = {};
+// Debug random number calls.
+double rngDebug(double val, string loc, string call, string file, int line) {
+  ++Rndm::debugCall;
+  if (!Rndm::debugNow) return val;
+  bool print = Rndm::debugStarts.size() + Rndm::debugEnds.size() +
+    Rndm::debugContains.size() + Rndm::debugMatches.size() == 0;
+  for (auto &exp : Rndm::debugStarts)
+    print = print || loc.rfind(exp, 0) == 0;
+  for (auto &exp : Rndm::debugEnds)
+    print = print || (loc.length() >= exp.length()
+      && loc.compare(loc.length() - exp.length(), exp.length(), exp) == 0);
+  for (auto &exp : Rndm::debugContains)
+    print = print || loc.find(exp) != string::npos;
+  for (auto &exp : Rndm::debugMatches) print = print || loc == exp;
+  if (!print) return val;
+  cout << setw(80) << left << loc + ":" + call
+       << setprecision(Rndm::debugPrecision) << scientific
+       << setw(Rndm::debugPrecision + 8) << right << val;
+  if (Rndm::debugIndex) cout << setw(12) << right << Rndm::debugCall;
+  if (Rndm::debugLocation) cout << " " << file << ":" << line;
+  cout << "\n";
+  return val;
+}
+double Rndm::flatDebug(string loc, string file, int line) {
+  return rngDebug(flat(), loc, "flat", file, line);}
+double Rndm::xexpDebug(string loc, string file, int line) {
+  return rngDebug(xexp(), loc, "xexp", file, line);}
+double Rndm::gaussDebug(string loc, string file, int line) {
+  return rngDebug(gauss(), loc, "gauss", file, line);}
+pair<double, double> Rndm::gauss2Debug(string loc, string file, int line) {
+  pair<double, double> val = gauss2();
+  rngDebug(val.first, loc, "gauss2:first", file, line);
+  rngDebug(val.second, loc, "gauss2:second", file, line);
+  return val;}
+double Rndm::gammaDebug(string loc, string file, int line,
+  double k0, double r0) {
+  return rngDebug(gamma(k0, r0), loc, "gamma", file, line);}
+pair<Vec4, Vec4> Rndm::phaseSpace2Debug(string loc, string file, int line,
+  double eCM, double m1, double m2) {
+  pair<Vec4, Vec4> val = phaseSpace2(eCM, m1, m2);
+  for (int i = 0; i < 4; ++i) {
+    rngDebug(val.first[i], loc, "phaseSpace2:first:" + to_string(i),
+      file, line);
+    rngDebug(val.second[i], loc, "phaseSpace2:second:" + to_string(i),
+      file, line);
+  }
+  return val;}
+#endif
+
+//--------------------------------------------------------------------------
+
 // Generate next random number uniformly between 0 and 1.
 
 double Rndm::flat() {
@@ -173,29 +267,12 @@ pair<Vec4, Vec4> Rndm::phaseSpace2(double eCM, double m1, double m2) {
 
 //--------------------------------------------------------------------------
 
-// Pick one option among  vector of (positive) probabilities.
-
-int Rndm::pick(const vector<double>& prob) {
-
-  double work = 0.;
-  for (int i = 0; i < int(prob.size()); ++i) work += prob[i];
-  work *= flat();
-  int index = -1;
-  do work -= prob[++index];
-  while (work > 0. && index < int(prob.size()));
-  return index;
-
-}
-
-//--------------------------------------------------------------------------
-
 // Save current state of the random number generator to a binary file.
 
 bool Rndm::dumpState(string fileName) {
 
   // Open file as output stream.
-  const char* fn = fileName.c_str();
-  ofstream ofs(fn, ios::binary);
+  ofstream ofs(fileName.c_str(), ios::binary);
 
   if (!ofs.good()) {
     cout << " Rndm::dumpState: could not open output file" << endl;
@@ -431,14 +508,14 @@ void Vec4::bst(const Vec4& pIn, double mIn) {
 void Vec4::bstback(const Vec4& pIn) {
 
   if (abs(pIn.tt) < Vec4::TINY) return;
-  double betaX = -pIn.xx / pIn.tt;
-  double betaY = -pIn.yy / pIn.tt;
-  double betaZ = -pIn.zz / pIn.tt;
-  double beta2 = betaX*betaX + betaY*betaY + betaZ*betaZ;
+  const double betaX = -pIn.xx / pIn.tt;
+  const double betaY = -pIn.yy / pIn.tt;
+  const double betaZ = -pIn.zz / pIn.tt;
+  const double beta2 = betaX*betaX + betaY*betaY + betaZ*betaZ;
   if (beta2 >= 1.) return;
-  double gamma = 1. / sqrt(1. - beta2);
-  double prod1 = betaX * xx + betaY * yy + betaZ * zz;
-  double prod2 = gamma * (gamma * prod1 / (1. + gamma) + tt);
+  const double gamma = 1. / sqrt(1. - beta2);
+  const double prod1 = betaX * xx + betaY * yy + betaZ * zz;
+  const double prod2 = gamma * (gamma * prod1 / (1. + gamma) + tt);
   xx          += prod2 * betaX;
   yy          += prod2 * betaY;
   zz          += prod2 * betaZ;
@@ -477,6 +554,18 @@ void Vec4::rotbst(const RotBstMatrix& M) {
   xx = M.M[1][0] * t + M.M[1][1] * x + M.M[1][2] * y +  M.M[1][3] * z;
   yy = M.M[2][0] * t + M.M[2][1] * x + M.M[2][2] * y +  M.M[2][3] * z;
   zz = M.M[3][0] * t + M.M[3][1] * x + M.M[3][2] * y +  M.M[3][3] * z;
+
+}
+
+//--------------------------------------------------------------------------
+
+// Function to calculate energy in the rest frame of other particle given
+// by input 4-momentum. Use that p1 * p2 = E1 * m2 in rest frame of 2.
+
+double Vec4::eInFrame(const Vec4& pIn) const {
+
+  if (abs(pIn.tt) < Vec4::TINY || pIn.mCalc() < Vec4::TINY) return tt;
+  return (pIn.tt * tt - pIn.xx * xx - pIn.yy * yy - pIn.zz * zz) / pIn.mCalc();
 
 }
 
@@ -560,14 +649,16 @@ Vec4 cross4(const Vec4& a, const Vec4& b, const Vec4& c) {
 
 //--------------------------------------------------------------------------
 
-// Opening angle between two three-vectors.
+// Opening angle (on unit sphere) between two three-vectors.
 
 double theta(const Vec4& v1, const Vec4& v2) {
-  double cthe = (v1.xx * v2.xx + v1.yy * v2.yy + v1.zz * v2.zz)
-    / sqrt( (v1.xx*v1.xx + v1.yy*v1.yy + v1.zz*v1.zz)
-    * (v2.xx*v2.xx + v2.yy*v2.yy + v2.zz*v2.zz) );
-  cthe = max(-1., min(1., cthe));
-  return acos(cthe);
+
+  // Normally use cos(theta) to extract theta.
+  double cthe = costheta( v1, v2);
+  if (cthe < 0.9999) return acos(cthe);
+  // For nearby vectors use sine instead, to improve precision.
+  return asin( sintheta( v1, v2) );
+
 }
 
 //--------------------------------------------------------------------------
@@ -580,6 +671,22 @@ double costheta(const Vec4& v1, const Vec4& v2) {
     * (v2.xx*v2.xx + v2.yy*v2.yy + v2.zz*v2.zz) );
   cthe = max(-1., min(1., cthe));
   return cthe;
+
+}
+
+//--------------------------------------------------------------------------
+
+// Sine of opening angle between two three-vectors, using cross product.
+
+double sintheta(const Vec4& v1, const Vec4& v2) {
+
+  // Squared cross product gives sin^2(theta).
+  double sin2the = ( pow2(v1.yy*v2.zz - v1.zz*v2.yy)
+    + pow2(v1.zz*v2.xx - v1.xx*v2.zz) + pow2(v1.xx*v2.yy - v1.yy*v2.xx) )
+    / ( (v1.xx*v1.xx + v1.yy*v1.yy + v1.zz*v1.zz)
+    * (v2.xx*v2.xx + v2.yy*v2.yy + v2.zz*v2.zz) );
+  return sqrtpos(sin2the);
+
 }
 
 //--------------------------------------------------------------------------
@@ -784,11 +891,12 @@ void RotBstMatrix::rot(const Vec4& p) {
 
 // Boost with velocity vector (betaX, betaY, betaZ).
 
-void RotBstMatrix::bst(double betaX, double betaY, double betaZ) {
+void RotBstMatrix::bst(double betaX, double betaY, double betaZ,
+  double gamma) {
 
   // Set up boost matrix.
-  double gm = 1. / sqrt( max( TINY, 1. - betaX*betaX - betaY*betaY
-    - betaZ*betaZ ) );
+  double gm = (gamma < 1.) ? 1. / sqrt( max( TINY, 1. - betaX*betaX
+    - betaY*betaY - betaZ*betaZ ) ) : gamma;
   double gf = gm*gm / (1. + gm);
   double Mbst[4][4] = {
     { gm,           gm*betaX,           gm*betaY,          gm*betaZ },
@@ -1116,9 +1224,10 @@ void Hist::null() {
 
 //--------------------------------------------------------------------------
 
-// Fill bin with weight.
+// Fill bin with weight w and uncertainty sig.
+// For sig < 0, sig -> (-sig) * w.
 
-void Hist::fill(double x, double w) {
+void Hist::fill(double x, double w, double sig) {
 
   if (!isfinite(x) || !isfinite(w)) {nNonFinite += 1; return;}
 
@@ -1131,7 +1240,9 @@ void Hist::fill(double x, double w) {
   else if (iBin >= nBin) over  += w;
   else {
     res[iBin]  += w;
-    res2[iBin] += w * w;
+    double err2 = sig * sig;
+    if (sig < 0.) err2 *= w * w;
+    res2[iBin] += err2;
     inside     += w;
     sumxNw[0]  += w;
     sumxNw[1]  += x * w;
@@ -1296,6 +1407,12 @@ ostream& operator<<(ostream& os, const Hist& h) {
   bool   doErr = (h.doStats && nEff > 0.);
   string pad   = "   ";
 
+  // Fixed or Scientific for nEffective.
+  bool neffExp = ( abs(nEff) >= 1e5 || (abs(nEff) <= 1e-2) );
+  int nEffPrec = 3;
+  if (!neffExp && abs(nEff) <= 1e-1) nEffPrec = 5;
+  else if (!neffExp && abs(nEff) <= 1.) nEffPrec = 4;
+
   // ------------------------------------------------------------------------
   // First line.
 
@@ -1316,7 +1433,7 @@ ostream& operator<<(ostream& os, const Hist& h) {
   // Mean.
   if (doExp) os << scientific << setprecision(3);
   else os << fixed << setprecision(prec);
-  os << pad << "Mean   = " << setw(10) << xMean;
+  os << pad << "Mean   =" << setw(10) << xMean;
   if (doErr) {
     double xMeanErr = h.getXMeanErr(false);
     if (doExp|| xMeanErr > 10 * abs(xMean)) os << setprecision(1);
@@ -1327,8 +1444,9 @@ ostream& operator<<(ostream& os, const Hist& h) {
   double xRMS      = h.getXRMS(false);
   if (doExp) os << scientific << setprecision(3);
   else os << fixed << setprecision(prec);
-  os << pad << "RMS =" << setw(10) << xRMS;
-  if (doErr) {
+  if (!doErr) os << pad << "RMS  =" << setw(10) << xRMS;
+  else {
+    os << pad << "RMS =" << setw(10) << xRMS;
     double xRMSErr = h.getXRMSErr(false);
     if (doExp || xRMSErr > 10 * abs(xRMS)) os << setprecision(1);
     os << " +-" << setw(7) << xRMSErr;
@@ -1360,7 +1478,7 @@ ostream& operator<<(ostream& os, const Hist& h) {
   double xMedian    = h.getXMedian(false);
   if (doExp) os << scientific << setprecision(3);
   else os << fixed << setprecision(prec);
-  os << pad << "Median = " << setw(10) << xMedian;
+  os << pad << "Median =" << setw(10) << xMedian;
   if (doErr) {
     double xMedianErr = h.getXMedianErr(false);
     if (doExp || xMedianErr > 10 * abs(xMedian)) os << setprecision(1);
@@ -1369,15 +1487,19 @@ ostream& operator<<(ostream& os, const Hist& h) {
 
   // nEff: Statistical power = effective number of unweighted entries.
   // If nEff ~ h.inside, use same precision as for SumW.
-  string var = (h.doStats ? "nEffective =  " : "nEff =");
+  string var = (h.doStats ? "nEffective =   " : "nEff =");
   if (nEff <= 0.) {
     os << pad << var << setw(10) << "N/A";
   } else if (h.doStats) {
-    os << pad << var << scientific;
-    os << setprecision(4) << setw(12) << nEff;
+    os << pad << var;
+    if (neffExp) os << scientific << setprecision(3);
+    else os << fixed << setprecision(nEffPrec);
+    os << setw(10) << nEff;
   } else {
-    os << pad << var << scientific;
-    os << setprecision(3) << setw(10) << nEff;
+    os << pad << var;
+    if (neffExp) os << scientific << setprecision(3);
+    else os << fixed << setprecision(nEffPrec);
+    os << setw(10) << nEff;
   }
 
   // Return to standard PYTHIA format.
@@ -1419,6 +1541,60 @@ void Hist::table(ostream& os, bool printOverUnder, bool xMidBin,
 
 //--------------------------------------------------------------------------
 
+// Print histogram contents as a table, in Yoda's *.yoda style.
+
+void Hist::yodaTable(ostream& os, string path, double scaledBy,
+  vector<int> maskedBins) const {
+
+  // Print the header to the table.
+  os << "BEGIN YODA_ESTIMATE1D_V3 /" + path + "\n"
+     << "Path: /" + path + "\n"
+     << "ScaledBy: " << scientific << setprecision(17) << scaledBy << "\n"
+     << "Title: " + titleSave + "\n"
+     << "Type: Estimate1D\n"
+     << "---\n";
+
+  // Print the edges.
+  os << "Edges(A1): [" << scientific << setprecision(6);
+  bool first = true;
+  for (double edge : getBinEdges()) {
+    if (!first) os << ", ";
+    else first = false;
+    os << edge;
+  }
+  os << "]\n";
+
+  // Print the masked bins and error labels.
+  os << "MaskedBins: [" << fixed << setprecision(1);
+  first = true;
+  for (int bin : maskedBins) {
+    if (!first) os << ", ";
+    else first = false;
+    os << bin;
+  }
+  os << "]\n"
+     << "ErrorLabels: [\"stats\"]\n";
+
+  // Print the values.
+  os << "# value         errDn(1)        errUp(1)        \n";
+  int w = 16;
+  double err = sqrtpos(under);
+  os << scientific << setprecision(6) << left
+     << setw(w) << under << setw(w) << -err << setw(w) << err << "\n";
+  for (int ix = 0; ix < nBin; ++ix) {
+    err = sqrtpos(res2[ix]);
+    os << setw(w) << res[ix] << setw(w) << -err << setw(w) << err << "\n";
+  }
+  err = sqrtpos(over);
+  os << setw(w) << over << setw(w) << -err << setw(w) << err << "\n";
+
+  // Print end tag.
+  os << "END YODA_ESTIMATE1D_V3\n";
+
+}
+
+//--------------------------------------------------------------------------
+
 // Print histogram contents as a table, in Rivet's *.dat style.
 
 void Hist::rivetTable(ostream& os, bool printError) const {
@@ -1441,7 +1617,7 @@ void Hist::rivetTable(ostream& os, bool printError) const {
 
 // Print histogram contents as a table, as appropriate for Pyplot.
 
-void Hist::pyplotTable(ostream& os, bool isHist) const {
+void Hist::pyplotTable(ostream& os, bool isHist, bool printError) const {
 
   // Set precision.
   os << scientific << setprecision(4);
@@ -1453,14 +1629,17 @@ void Hist::pyplotTable(ostream& os, bool isHist) const {
     xNow  = (linX) ? xBeg + ix * dx : xBeg * pow(10., ix * dx);
     xEdge = (linX) ? xMin + ix * dx : xMin * pow(10., ix * dx);
     os << setw(12) << xNow << setw(12) << res[ix];
-    if (isHist) os << setw(12) << xEdge << "\n";
-    else os << "\n";
+    if (isHist) os << setw(12) << xEdge;
+    if (printError) os << setw(12) << sqrtpos(res2[ix]);
+    os << "\n";
   }
 
   // And also an extra no-weights line to give final upper bin edge.
   if (isHist) {
     double xEnd = (linX) ? xMax - 0.5 * dx : xMax * pow( 10., -0.5 * dx);
-    os << setw(12) << xEnd << setw(12) << 0. << setw(12) << xMax << "\n";
+    os << setw(12) << xEnd << setw(12) << 0. << setw(12) << xMax;
+    if (printError) os << setw(12) << 0.;
+    os << "\n";
   }
 
 }
@@ -1542,12 +1721,16 @@ double Hist::getXMean(bool unbinned) const {
 
 //--------------------------------------------------------------------------
 
-// Compute median in X (with linear interpolation inside median bin).
+// Compute n'th percentile in X (with linear interpolation inside bin).
+// Input n is interpreted as a percentage,
+// e.g., for 90th percentile, use n = 90.0.
 // Note: absolute values of weights are used.
 
-double Hist::getXMedian(bool includeOverUnder) const {
+double Hist::getXPercentile(double n, bool includeOverUnder) const {
   double wtSumNow = 0.;
   double wtSumTot = 0.;
+  double fraction = n / 100.;
+
   for (int ix = 0; ix < nBin ; ++ix) {
     wtSumTot += abs(res[ix]);
   }
@@ -1556,14 +1739,14 @@ double Hist::getXMedian(bool includeOverUnder) const {
     wtSumTot += abs(over) + abs(under);
     wtSumNow = abs(under);
     // If excess bins contain more than half, return low or high edge.
-    if (abs(under) > 0.5 * wtSumTot) return xMin;
-    else if (abs(over) > 0.5 * wtSumTot) return xMax;
+    if (abs(under) > fraction * wtSumTot) return xMin;
+    else if (abs(over) > fraction * wtSumTot) return xMax;
   }
   for (int ix = 0; ix < nBin ; ++ix) {
     double wtSumOld = wtSumNow;
     wtSumNow += abs(res[ix]);
-    if (wtSumNow > 0.5 * wtSumTot) {
-      double frac = (0.5*wtSumTot - wtSumOld)/(wtSumNow - wtSumOld);
+    if (wtSumNow > fraction * wtSumTot) {
+      double frac = (fraction*wtSumTot - wtSumOld)/(wtSumNow - wtSumOld);
       return (linX) ? xMin + (ix + frac) * dx
                     : xMin * pow( 10., (ix + frac) * dx);
     }
@@ -1589,7 +1772,7 @@ double Hist::getXMedianErr(bool includeOverUnder) const {
   // Include underflow and overflow bins in median definition?
   if (includeOverUnder) wtSumTot += abs(over) + abs(under);
   // Laplace's formula for variance of median: 1/(4 nEff f(xmedian)^2).
-  int iBin = int( (xMedian - xMin)/dx );
+  int iBin = int( (linX) ? (xMedian - xMin)/dx : log10( xMedian / xMin )/dx);
   double fMedian  = (linX) ? abs(res[iBin]) / dx / wtSumTot :
     abs(res[iBin]) / pow( 10. , dx ) / wtSumTot;
   double statFac    = sqrtpos( 1. / max(getNEffective(), Hist::TINY) );
@@ -1754,6 +1937,30 @@ double Hist::getBinContent(int iBin) const {
 
 }
 
+//--------------------------------------------------------------------------
+
+// Get statistical uncertainty of the bin.
+
+double Hist::getBinError(int iBin) const {
+
+  if (iBin > 0 && iBin <= nBin) return sqrtpos(res2[iBin - 1]);
+  else return 0.;
+
+}
+
+//--------------------------------------------------------------------------
+
+// Get squared statistical uncertainty of the bin.
+
+double Hist::getBinError2(int iBin) const {
+
+  if (iBin > 0 && iBin <= nBin) return res2[iBin - 1];
+  else return 0.;
+
+}
+
+//--------------------------------------------------------------------------
+
 // Return the lower edge of the bin.
 
 double Hist::getBinEdge(int iBin) const {
@@ -1763,6 +1970,8 @@ double Hist::getBinEdge(int iBin) const {
   else return numeric_limits<double>::quiet_NaN();
 
 }
+
+//--------------------------------------------------------------------------
 
 // Return the width of the bin.
 
@@ -1776,15 +1985,54 @@ double Hist::getBinWidth(int iBin) const {
 
 //--------------------------------------------------------------------------
 
-// Return bin contents and edges.
+// Return the center of the bin.
+
+double Hist::getBinCenter(int iBin) const {
+
+  if (iBin > 0 && iBin <= nBin + 1)
+    return linX ? xMin + (iBin - 0.5) * dx :
+      xMin * pow(10., (iBin - 0.5) * dx);
+  else return numeric_limits<double>::quiet_NaN();
+
+}
+
+//--------------------------------------------------------------------------
+
+// Return bin contents, sum of squares, and edges.
 
 vector<double> Hist::getBinContents() const {return res;}
+
+vector<double> Hist::getBinErrors() const {
+
+  vector<double> errors(nBin + 1);
+  for (int ix = 0; ix <= nBin; ++ix) errors[ix] = getBinError(ix + 1);
+  return errors;
+
+}
+
+vector<double> Hist::getBinError2s() const {return res2;}
 
 vector<double> Hist::getBinEdges() const {
 
   vector<double> edges(nBin + 1);
   for (int ix = 0; ix <= nBin; ++ix) edges[ix] = getBinEdge(ix + 1);
   return edges;
+
+}
+
+vector<double> Hist::getBinWidths() const {
+
+  vector<double> widths(nBin + 1);
+  for (int ix = 0; ix <= nBin; ++ix) widths[ix] = getBinWidth(ix + 1);
+  return widths;
+
+}
+
+vector<double> Hist::getBinCenters() const {
+
+  vector<double> centers(nBin + 1);
+  for (int ix = 0; ix <= nBin; ++ix) centers[ix] = getBinCenter(ix + 1);
+  return centers;
 
 }
 
@@ -1917,7 +2165,7 @@ Hist& Hist::operator-=(const Hist& h) {
 //--------------------------------------------------------------------------
 
 // Multiply existing histogram by another one.
-// (Nullifies sum of squared weights.)
+// (Assumes Gaussian uncertainty propagation.)
 
 Hist& Hist::operator*=(const Hist& h) {
   if (!sameSize(h)) return *this;
@@ -1929,8 +2177,10 @@ Hist& Hist::operator*=(const Hist& h) {
   // Result for sumxNw has to use binned values.
   for (int m = 0; m < nMoments; ++m) sumxNw[m] = 0.;
   for (int ix = 0; ix < nBin; ++ix) {
+    res2[ix] = (abs(res[ix]) < Hist::TINY || abs(h.res[ix]) < Hist::TINY) ? 0 :
+      pow2(res[ix]*h.res[ix])*(
+        res2[ix]/pow2(res[ix]) + h.res2[ix]/pow2(h.res[ix]));
     res[ix] *= h.res[ix];
-    res2[ix] = 0.;
     double x = (linX) ? xMin + (ix + 0.5) * dx
       : xMin * pow( 10., (ix + 0.5) * dx);
     sumxNw[0] += res[ix];
@@ -1943,7 +2193,7 @@ Hist& Hist::operator*=(const Hist& h) {
 //--------------------------------------------------------------------------
 
 // Divide existing histogram by another one.
-// (Nullifies sum of squared weights.)
+// (Assumes Gaussian uncertainty propagation.)
 
 Hist& Hist::operator/=(const Hist& h) {
   if (!sameSize(h)) return *this;
@@ -1955,8 +2205,10 @@ Hist& Hist::operator/=(const Hist& h) {
   // Result for sumxNw has to use binned values.
   for (int m = 0; m < nMoments; ++m) sumxNw[m] = 0.;
   for (int ix = 0; ix < nBin; ++ix) {
+    res2[ix] = (abs(res[ix]) < Hist::TINY || abs(h.res[ix]) < Hist::TINY) ? 0 :
+      pow2(res[ix]/h.res[ix])*(
+        res2[ix]/pow2(res[ix]) + h.res2[ix]/pow2(h.res[ix]));
     res[ix]  = (abs(h.res[ix]) < Hist::TINY) ? 0. : res[ix]/h.res[ix];
-    res2[ix] = 0.;
     double x = (linX) ? xMin + (ix + 0.5) * dx
       : xMin * pow( 10., (ix + 0.5) * dx);
     sumxNw[0] += res[ix];
@@ -2209,19 +2461,27 @@ void HistPlot::plot( bool logY, bool logX, bool userBorders) {
     // Write histogram itself to a data file as two columns of (x,y) values.
     stringstream encode;
     encode << fileName << "-" << nTable + iHist << ".dat";
-    histos[iHist].pyplotTable( encode.str(), (style1 == "h") );
+    histos[iHist].pyplotTable( encode.str(), (style1 == "h" || style1 == "e"),
+      (style1 == "e"));
 
     // Write code to plot histogram.
     toPython << "plot = open('" << encode.str() << "')" << endl
              << "plot = [line.split() for line in plot]" << endl
              << "valx = [float(x[0]) for x in plot]" << endl
              << "valy = [float(x[1]) for x in plot]" << endl;
-    if (style1 == "h") toPython  << "vale = [float(x[2]) for x in plot]"
-             << endl << "plt.hist( valx, vale, weights = valy,"
-             << " histtype='step',";
+    if (style1 == "h" || style1 == "e")
+      toPython  << "vale = [float(x[2]) for x in plot]"
+                << endl << "plt.hist( valx, vale, weights = valy,"
+                << " histtype='step',";
     else toPython << "plt.plot( valx, valy, '" << style1 << "',";
     if (style2 != "") toPython << " color='" << style2 << "',";
-    toPython << " label=r'" << legendNow << "')" << endl;
+    toPython << " label=r\"" << legendNow << "\")" << endl;
+    if (style1 == "e") {
+      toPython << "erry = [float(x[3]) for x in plot]" << endl
+               << "plt.errorbar( valx, valy, yerr=erry,"
+               << " fmt='.', markersize=0, "
+               << " color=plt.gca().patches[-1].get_edgecolor())" << endl;
+    }
   }
 
   // Loop through the vector of already existing files, if any.
@@ -2278,7 +2538,7 @@ void HistPlot::plot( bool logY, bool logX, bool userBorders) {
       toPython << " fmt='" << style1 << "',";
     }
     if (style2 != "") toPython << " color='" << style2 << "',";
-    toPython << " label=r'" << legendNow << "', zorder=-1)" << endl;
+    toPython << " label=r\"" << legendNow << "\", zorder=-1)" << endl;
   }
 
   // Set borders and write axes.
@@ -2317,9 +2577,9 @@ void HistPlot::plot( bool logY, bool logX, bool userBorders) {
 
   // Write title and labels, and create plot.
   toPython << "plt.legend(frameon=False,loc='best')" << endl
-           << "plt.title(r'" << title << "')" << endl
-           << "plt.xlabel(r'" << xLabel << "')" << endl
-           << "plt.ylabel(r\'" << yLabel << "')" << endl
+           << "plt.title(r\"" << title << "\")" << endl
+           << "plt.xlabel(r\"" << xLabel << "\")" << endl
+           << "plt.ylabel(r\"" << yLabel << "\")" << endl
            << "pp.savefig(tmp" << nFrame << ",bbox_inches='tight')"
            << endl << "plt.clf()" << endl;
 

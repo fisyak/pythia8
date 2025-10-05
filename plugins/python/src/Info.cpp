@@ -27,6 +27,7 @@
 #include <memory>
 #include <ostream>
 #include <set>
+#include <sstream>
 #include <sstream> // __str__
 #include <string>
 #include <utility>
@@ -36,6 +37,7 @@
 #include <functional>
 #include <string>
 #include <Pythia8/UserHooks.h>
+#include <Pythia8/SplittingsOnia.h>
 #include <Pythia8/HeavyIons.h>
 #include <Pythia8/BeamShape.h>
 #include <pybind11/stl.h>
@@ -77,6 +79,7 @@ void bind_Pythia8_Info(std::function< pybind11::module &(std::string const &name
 		cl.def_readwrite("eCMSave", &Pythia8::Info::eCMSave);
 		cl.def_readwrite("sSave", &Pythia8::Info::sSave);
 		cl.def_readwrite("lowPTmin", &Pythia8::Info::lowPTmin);
+		cl.def_readwrite("inInitSave", &Pythia8::Info::inInitSave);
 		cl.def_readwrite("nTry", &Pythia8::Info::nTry);
 		cl.def_readwrite("nSel", &Pythia8::Info::nSel);
 		cl.def_readwrite("nAcc", &Pythia8::Info::nAcc);
@@ -137,6 +140,11 @@ void bind_Pythia8_Info(std::function< pybind11::module &(std::string const &name
 		cl.def_readwrite("iBMPISave", &Pythia8::Info::iBMPISave);
 		cl.def_readwrite("pTMPISave", &Pythia8::Info::pTMPISave);
 		cl.def_readwrite("eMPISave", &Pythia8::Info::eMPISave);
+		cl.def_readwrite("Q2DISSave", &Pythia8::Info::Q2DISSave);
+		cl.def_readwrite("WDISSave", &Pythia8::Info::WDISSave);
+		cl.def_readwrite("xDISSave", &Pythia8::Info::xDISSave);
+		cl.def_readwrite("yDISSave", &Pythia8::Info::yDISSave);
+		cl.def_readwrite("isDISSave", &Pythia8::Info::isDISSave);
 		cl.def_readwrite("isVMDstateAEvent", &Pythia8::Info::isVMDstateAEvent);
 		cl.def_readwrite("isVMDstateBEvent", &Pythia8::Info::isVMDstateBEvent);
 		cl.def_readwrite("gammaModeEvent", &Pythia8::Info::gammaModeEvent);
@@ -162,6 +170,10 @@ void bind_Pythia8_Info(std::function< pybind11::module &(std::string const &name
 		cl.def_readwrite("weakMomenta", &Pythia8::Info::weakMomenta);
 		cl.def_readwrite("weakDipoles", &Pythia8::Info::weakDipoles);
 		cl.def_readwrite("oniumShower", &Pythia8::Info::oniumShower);
+		cl.def_readwrite("currentEventRndmState", &Pythia8::Info::currentEventRndmState);
+		cl.def_readwrite("toponiumE", &Pythia8::Info::toponiumE);
+		cl.def_readwrite("toponiumm3", &Pythia8::Info::toponiumm3);
+		cl.def_readwrite("toponiumm4", &Pythia8::Info::toponiumm4);
 		cl.def("assign", (class Pythia8::Info & (Pythia8::Info::*)(const class Pythia8::Info &)) &Pythia8::Info::operator=, "C++: Pythia8::Info::operator=(const class Pythia8::Info &) --> class Pythia8::Info &", pybind11::return_value_policy::reference, pybind11::arg(""));
 		cl.def("list", (void (Pythia8::Info::*)() const) &Pythia8::Info::list, "C++: Pythia8::Info::list() const --> void");
 		cl.def("idA", (int (Pythia8::Info::*)() const) &Pythia8::Info::idA, "C++: Pythia8::Info::idA() const --> int");
@@ -235,6 +247,11 @@ void bind_Pythia8_Info(std::function< pybind11::module &(std::string const &name
 		cl.def("Q2Ren", (double (Pythia8::Info::*)(int) const) &Pythia8::Info::Q2Ren, "C++: Pythia8::Info::Q2Ren(int) const --> double", pybind11::arg("i"));
 		cl.def("scalup", [](Pythia8::Info const &o) -> double { return o.scalup(); }, "");
 		cl.def("scalup", (double (Pythia8::Info::*)(int) const) &Pythia8::Info::scalup, "C++: Pythia8::Info::scalup(int) const --> double", pybind11::arg("i"));
+		cl.def("Q2DIS", (double (Pythia8::Info::*)() const) &Pythia8::Info::Q2DIS, "C++: Pythia8::Info::Q2DIS() const --> double");
+		cl.def("WDIS", (double (Pythia8::Info::*)() const) &Pythia8::Info::WDIS, "C++: Pythia8::Info::WDIS() const --> double");
+		cl.def("xDIS", (double (Pythia8::Info::*)() const) &Pythia8::Info::xDIS, "C++: Pythia8::Info::xDIS() const --> double");
+		cl.def("yDIS", (double (Pythia8::Info::*)() const) &Pythia8::Info::yDIS, "C++: Pythia8::Info::yDIS() const --> double");
+		cl.def("isDIS", (bool (Pythia8::Info::*)() const) &Pythia8::Info::isDIS, "C++: Pythia8::Info::isDIS() const --> bool");
 		cl.def("xGammaA", (double (Pythia8::Info::*)() const) &Pythia8::Info::xGammaA, "C++: Pythia8::Info::xGammaA() const --> double");
 		cl.def("xGammaB", (double (Pythia8::Info::*)() const) &Pythia8::Info::xGammaB, "C++: Pythia8::Info::xGammaB() const --> double");
 		cl.def("Q2GammaA", (double (Pythia8::Info::*)() const) &Pythia8::Info::Q2GammaA, "C++: Pythia8::Info::Q2GammaA() const --> double");
@@ -277,7 +294,7 @@ void bind_Pythia8_Info(std::function< pybind11::module &(std::string const &name
 		cl.def("weightSum", (double (Pythia8::Info::*)() const) &Pythia8::Info::weightSum, "C++: Pythia8::Info::weightSum() const --> double");
 		cl.def("lhaStrategy", (double (Pythia8::Info::*)() const) &Pythia8::Info::lhaStrategy, "C++: Pythia8::Info::lhaStrategy() const --> double");
 		cl.def("nWeights", (int (Pythia8::Info::*)() const) &Pythia8::Info::nWeights, "C++: Pythia8::Info::nWeights() const --> int");
-		cl.def("weightLabel", (std::string (Pythia8::Info::*)(int) const) &Pythia8::Info::weightLabel, "C++: Pythia8::Info::weightLabel(int) const --> std::string", pybind11::arg("iWeight"));
+		cl.def("weightLabel", (std::string (Pythia8::Info::*)(int) const) &Pythia8::Info::weightLabel, "C++: Pythia8::Info::weightLabel(int) const --> std::string", pybind11::arg("iWgt"));
 		cl.def("nWeightGroups", (int (Pythia8::Info::*)() const) &Pythia8::Info::nWeightGroups, "C++: Pythia8::Info::nWeightGroups() const --> int");
 		cl.def("getGroupName", (std::string (Pythia8::Info::*)(int) const) &Pythia8::Info::getGroupName, "C++: Pythia8::Info::getGroupName(int) const --> std::string", pybind11::arg("iGN"));
 		cl.def("getGroupWeight", (double (Pythia8::Info::*)(int) const) &Pythia8::Info::getGroupWeight, "C++: Pythia8::Info::getGroupWeight(int) const --> double", pybind11::arg("iGW"));
@@ -336,7 +353,9 @@ void bind_Pythia8_Info(std::function< pybind11::module &(std::string const &name
 		cl.def("nProcessesLHEF", (int (Pythia8::Info::*)() const) &Pythia8::Info::nProcessesLHEF, "C++: Pythia8::Info::nProcessesLHEF() const --> int");
 		cl.def("sigmaLHEF", (double (Pythia8::Info::*)(int) const) &Pythia8::Info::sigmaLHEF, "C++: Pythia8::Info::sigmaLHEF(int) const --> double", pybind11::arg("iProcess"));
 		cl.def("setLHEF3InitInfo", (void (Pythia8::Info::*)()) &Pythia8::Info::setLHEF3InitInfo, "C++: Pythia8::Info::setLHEF3InitInfo() --> void");
+		cl.def("setLHEF3InitInfo", (void (Pythia8::Info::*)(int, struct Pythia8::LHAinitrwgt *, class std::vector<struct Pythia8::LHAgenerator, class std::allocator<struct Pythia8::LHAgenerator> > *, class std::map<std::string, struct Pythia8::LHAweightgroup, struct std::less<std::string >, class std::allocator<struct std::pair<const std::string, struct Pythia8::LHAweightgroup> > > *, class std::map<std::string, struct Pythia8::LHAweight, struct std::less<std::string >, class std::allocator<struct std::pair<const std::string, struct Pythia8::LHAweight> > > *, std::string)) &Pythia8::Info::setLHEF3InitInfo, "C++: Pythia8::Info::setLHEF3InitInfo(int, struct Pythia8::LHAinitrwgt *, class std::vector<struct Pythia8::LHAgenerator, class std::allocator<struct Pythia8::LHAgenerator> > *, class std::map<std::string, struct Pythia8::LHAweightgroup, struct std::less<std::string >, class std::allocator<struct std::pair<const std::string, struct Pythia8::LHAweightgroup> > > *, class std::map<std::string, struct Pythia8::LHAweight, struct std::less<std::string >, class std::allocator<struct std::pair<const std::string, struct Pythia8::LHAweight> > > *, std::string) --> void", pybind11::arg("LHEFversionIn"), pybind11::arg("initrwgtIn"), pybind11::arg("generatorsIn"), pybind11::arg("weightgroupsIn"), pybind11::arg("init_weightsIn"), pybind11::arg("headerBlockIn"));
 		cl.def("setLHEF3EventInfo", (void (Pythia8::Info::*)()) &Pythia8::Info::setLHEF3EventInfo, "C++: Pythia8::Info::setLHEF3EventInfo() --> void");
+		cl.def("setLHEF3EventInfo", (void (Pythia8::Info::*)(class std::map<std::string, std::string, struct std::less<std::string >, class std::allocator<struct std::pair<const std::string, std::string > > > *, class std::map<std::string, double, struct std::less<std::string >, class std::allocator<struct std::pair<const std::string, double> > > *, class std::vector<double, class std::allocator<double> > *, struct Pythia8::LHAscales *, struct Pythia8::LHAweights *, struct Pythia8::LHArwgt *, class std::vector<double, class std::allocator<double> >, class std::vector<std::string, class std::allocator<std::string > >, std::string, double)) &Pythia8::Info::setLHEF3EventInfo, "C++: Pythia8::Info::setLHEF3EventInfo(class std::map<std::string, std::string, struct std::less<std::string >, class std::allocator<struct std::pair<const std::string, std::string > > > *, class std::map<std::string, double, struct std::less<std::string >, class std::allocator<struct std::pair<const std::string, double> > > *, class std::vector<double, class std::allocator<double> > *, struct Pythia8::LHAscales *, struct Pythia8::LHAweights *, struct Pythia8::LHArwgt *, class std::vector<double, class std::allocator<double> >, class std::vector<std::string, class std::allocator<std::string > >, std::string, double) --> void", pybind11::arg("eventAttributesIn"), pybind11::arg("weights_detailedIn"), pybind11::arg("weights_compressedIn"), pybind11::arg("scalesIn"), pybind11::arg("weightsIn"), pybind11::arg("rwgtIn"), pybind11::arg("weights_detailed_vecIn"), pybind11::arg("weights_detailed_name_vecIn"), pybind11::arg("eventCommentsIn"), pybind11::arg("eventWeightLHEFIn"));
 		cl.def("getEventAttribute", [](Pythia8::Info const &o, class std::basic_string<char> const & a0) -> std::string { return o.getEventAttribute(a0); }, "", pybind11::arg("key"));
 		cl.def("getEventAttribute", (std::string (Pythia8::Info::*)(std::string, bool) const) &Pythia8::Info::getEventAttribute, "C++: Pythia8::Info::getEventAttribute(std::string, bool) const --> std::string", pybind11::arg("key"), pybind11::arg("doRemoveWhitespace"));
 		cl.def("setEventAttribute", [](Pythia8::Info &o, class std::basic_string<char> const & a0, class std::basic_string<char> const & a1) -> void { return o.setEventAttribute(a0, a1); }, "", pybind11::arg("key"), pybind11::arg("value"));
@@ -383,10 +402,13 @@ void bind_Pythia8_Info(std::function< pybind11::module &(std::string const &name
 		cl.def("setWeak2to2lines", (void (Pythia8::Info::*)(class std::vector<int, class std::allocator<int> >)) &Pythia8::Info::setWeak2to2lines, "C++: Pythia8::Info::setWeak2to2lines(class std::vector<int, class std::allocator<int> >) --> void", pybind11::arg("weak2to2linesIn"));
 		cl.def("setOniumShower", (void (Pythia8::Info::*)(bool)) &Pythia8::Info::setOniumShower, "C++: Pythia8::Info::setOniumShower(bool) --> void", pybind11::arg("oniumShowerIn"));
 		cl.def("getOniumShower", (bool (Pythia8::Info::*)() const) &Pythia8::Info::getOniumShower, "C++: Pythia8::Info::getOniumShower() const --> bool");
+		cl.def("setInInit", (void (Pythia8::Info::*)(bool)) &Pythia8::Info::setInInit, "C++: Pythia8::Info::setInInit(bool) --> void", pybind11::arg("inInitIn"));
+		cl.def("getInInit", (bool (Pythia8::Info::*)() const) &Pythia8::Info::getInInit, "C++: Pythia8::Info::getInInit() const --> bool");
 		cl.def("setBeamIDs", (void (Pythia8::Info::*)(int, int)) &Pythia8::Info::setBeamIDs, "C++: Pythia8::Info::setBeamIDs(int, int) --> void", pybind11::arg("idAin"), pybind11::arg("idBin"));
 		cl.def("setBeamA", (void (Pythia8::Info::*)(int, double, double, double)) &Pythia8::Info::setBeamA, "C++: Pythia8::Info::setBeamA(int, double, double, double) --> void", pybind11::arg("idAin"), pybind11::arg("pzAin"), pybind11::arg("eAin"), pybind11::arg("mAin"));
 		cl.def("setBeamB", (void (Pythia8::Info::*)(int, double, double, double)) &Pythia8::Info::setBeamB, "C++: Pythia8::Info::setBeamB(int, double, double, double) --> void", pybind11::arg("idBin"), pybind11::arg("pzBin"), pybind11::arg("eBin"), pybind11::arg("mBin"));
 		cl.def("setECM", (void (Pythia8::Info::*)(double)) &Pythia8::Info::setECM, "C++: Pythia8::Info::setECM(double) --> void", pybind11::arg("eCMin"));
+		cl.def("setDISKinematics", (void (Pythia8::Info::*)(double, double, double, double)) &Pythia8::Info::setDISKinematics, "C++: Pythia8::Info::setDISKinematics(double, double, double, double) --> void", pybind11::arg("Q2In"), pybind11::arg("WIn"), pybind11::arg("xIn"), pybind11::arg("yIn"));
 		cl.def("setX1Gamma", (void (Pythia8::Info::*)(double)) &Pythia8::Info::setX1Gamma, "C++: Pythia8::Info::setX1Gamma(double) --> void", pybind11::arg("x1GammaIn"));
 		cl.def("setX2Gamma", (void (Pythia8::Info::*)(double)) &Pythia8::Info::setX2Gamma, "C++: Pythia8::Info::setX2Gamma(double) --> void", pybind11::arg("x2GammaIn"));
 		cl.def("setQ2Gamma1", (void (Pythia8::Info::*)(double)) &Pythia8::Info::setQ2Gamma1, "C++: Pythia8::Info::setQ2Gamma1(double) --> void", pybind11::arg("Q2gammaIn"));
@@ -448,5 +470,9 @@ void bind_Pythia8_Info(std::function< pybind11::module &(std::string const &name
 		cl.def("weightNameByIndex", (std::string (Pythia8::Info::*)(int) const) &Pythia8::Info::weightNameByIndex, "C++: Pythia8::Info::weightNameByIndex(int) const --> std::string", pybind11::arg("key"));
 		cl.def("weightValueVector", (class std::vector<double, class std::allocator<double> > (Pythia8::Info::*)() const) &Pythia8::Info::weightValueVector, "C++: Pythia8::Info::weightValueVector() const --> class std::vector<double, class std::allocator<double> >");
 		cl.def("weightNameVector", (class std::vector<std::string, class std::allocator<std::string > > (Pythia8::Info::*)() const) &Pythia8::Info::weightNameVector, "C++: Pythia8::Info::weightNameVector() const --> class std::vector<std::string, class std::allocator<std::string > >");
+		cl.def("dumpRandomState", [](Pythia8::Info const &o) -> void { return o.dumpRandomState(); }, "");
+		cl.def("dumpRandomState", (void (Pythia8::Info::*)(std::string) const) &Pythia8::Info::dumpRandomState, "C++: Pythia8::Info::dumpRandomState(std::string) const --> void", pybind11::arg("fileName"));
+		cl.def("readRandomState", [](Pythia8::Info const &o) -> void { return o.readRandomState(); }, "");
+		cl.def("readRandomState", (void (Pythia8::Info::*)(std::string) const) &Pythia8::Info::readRandomState, "C++: Pythia8::Info::readRandomState(std::string) const --> void", pybind11::arg("fileName"));
 	}
 }

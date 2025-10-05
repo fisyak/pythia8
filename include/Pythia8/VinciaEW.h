@@ -1,5 +1,5 @@
 // VinciaEW.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Peter Skands, Torbjorn Sjostrand.
+// Copyright (C) 2025 Peter Skands, Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -885,20 +885,20 @@ public:
   // Update an event.
   void updateEvent(Event &event) {
     if (verbose >= VinciaConstants::DEBUG)
-      printOut(__METHOD_NAME__, "begin", VinciaConstants::dashLen);
+      printOut(__METHOD_NAME__, "begin", VinciaConstants::DASHLEN);
     if (antTrial != nullptr) antTrial->updateEvent(event);
     else loggerPtr->ERROR_MSG("trial doesn't exist!");
     if (verbose >= VinciaConstants::DEBUG)
-      printOut(__METHOD_NAME__, "end", VinciaConstants::dashLen);}
+      printOut(__METHOD_NAME__, "end", VinciaConstants::DASHLEN);}
 
   // Update parton systems.
   void updatePartonSystems(Event &event) {
     if (verbose >= VinciaConstants::DEBUG)
-      printOut(__METHOD_NAME__, "begin", VinciaConstants::dashLen);
+      printOut(__METHOD_NAME__, "begin", VinciaConstants::DASHLEN);
     if (antTrial!=nullptr) antTrial->updatePartonSystems(event);
     else loggerPtr->ERROR_MSG("trial doesn't exist!");
     if (verbose >= VinciaConstants::DEBUG)
-      printOut(__METHOD_NAME__, "end", VinciaConstants::dashLen);}
+      printOut(__METHOD_NAME__, "end", VinciaConstants::DASHLEN);}
 
   // Print the antennas.
   void printAntennae() {
@@ -944,7 +944,8 @@ private:
   double q2Cut;
 
   // Pointers.
-  BeamParticle* beamAPtr{}, *beamBPtr{};
+  BeamParticle* beamAPtr{};
+  BeamParticle* beamBPtr{};
   Info* infoPtr{};
   PartonSystems* partonSystemsPtr{};
   Rndm* rndmPtr{};
@@ -1006,8 +1007,8 @@ public:
     isInitPtr = true;}
 
   // Initialise settings for current run (called as part of Pythia::init()).
-  void init(BeamParticle* beamAPtrIn = 0, BeamParticle* beamBPtrIn = 0)
-    override;
+  void init(BeamParticle* beamAPtrIn = nullptr,
+    BeamParticle* beamBPtrIn = nullptr) override;
 
   // Select helicities for a resonance-decay system.
   bool polarise(vector<Particle> &state) override {
@@ -1016,16 +1017,16 @@ public:
 
   // Prepare to shower a system.
   // (If isBelowHadIn = true, assume only resonance decays may be left to do.)
-  bool prepare(int iSysIn, Event &event, bool isBelowHadIn=false) override;
+  bool prepare(int iSysIn, Event &event, int scaleRegionIn = 0) override;
 
   // Update EW shower system each time something has changed.
   void update(Event &event, int iSysIn) override {
     if (verbose >= VinciaConstants::DEBUG)
-      printOut(__METHOD_NAME__, "begin", VinciaConstants::dashLen);
+      printOut(__METHOD_NAME__, "begin", VinciaConstants::DASHLEN);
     if (iSysIn != ewSystem.system()) return;
     else ewSystem.buildSystem(event);
     if (verbose >= VinciaConstants::DEBUG)
-      printOut(__METHOD_NAME__, "end", VinciaConstants::dashLen);}
+      printOut(__METHOD_NAME__, "end", VinciaConstants::DASHLEN);}
 
   // Set verbose level.
   void setVerbose(int verboseIn) override {
@@ -1046,32 +1047,32 @@ public:
   // Check veto.
   bool acceptTrial(Event& event) override {
     if (verbose >= VinciaConstants::DEBUG)
-      printOut(__METHOD_NAME__, "begin", VinciaConstants::dashLen);
+      printOut(__METHOD_NAME__, "begin", VinciaConstants::DASHLEN);
     bool success = false;
     if (ewSystem.hasTrial()) success = ewSystem.acceptTrial(event);
     else loggerPtr->ERROR_MSG("trial doesn't exist!");
     if (verbose >= VinciaConstants::DEBUG)
-      printOut(__METHOD_NAME__, "end", VinciaConstants::dashLen);
+      printOut(__METHOD_NAME__, "end", VinciaConstants::DASHLEN);
     return success;}
 
   // Update event after branching accepted.
   void updateEvent(Event& event) override {
     if (verbose >= VinciaConstants::DEBUG)
-      printOut(__METHOD_NAME__, "begin", VinciaConstants::dashLen);
+      printOut(__METHOD_NAME__, "begin", VinciaConstants::DASHLEN);
     if (ewSystem.hasTrial()) ewSystem.updateEvent(event);
     else loggerPtr->ERROR_MSG("trial doesn't exist!");
     if (verbose >=VinciaConstants::DEBUG) {
       printOut(__METHOD_NAME__,"Event after update:"); event.list();
-      printOut(__METHOD_NAME__, "end", VinciaConstants::dashLen);}}
+      printOut(__METHOD_NAME__, "end", VinciaConstants::DASHLEN);}}
 
   // Update partonSystems after branching accepted.
   void updatePartonSystems(Event& event) override {
     if (verbose >= VinciaConstants::DEBUG)
-      printOut(__METHOD_NAME__, "begin", VinciaConstants::dashLen);
+      printOut(__METHOD_NAME__, "begin", VinciaConstants::DASHLEN);
     if (ewSystem.hasTrial()) ewSystem.updatePartonSystems(event);
     else loggerPtr->ERROR_MSG("trial doesn't exist!");
     if (verbose >= VinciaConstants::DEBUG)
-      printOut(__METHOD_NAME__, "end", VinciaConstants::dashLen);}
+      printOut(__METHOD_NAME__, "end", VinciaConstants::DASHLEN);}
 
   // Clear EW system.
   void clear(int) override {

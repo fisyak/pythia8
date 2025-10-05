@@ -1,5 +1,5 @@
 # Makefile is a part of the PYTHIA event generator.
-# Copyright (C) 2023 Torbjorn Sjostrand.
+# Copyright (C) 2025 Torbjorn Sjostrand.
 # PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 # Please respect the MCnet Guidelines, see GUIDELINES for details.
 # Author: Philip Ilten, October 2019.
@@ -25,6 +25,7 @@ TOP_INCLUDE=../../include
 LOCAL_SRC=src
 LOCAL_TMP=tmp
 LOCAL_INCLUDE=include
+LOCAL_EXTRA=extra
 LOCAL_MKDIRS:=$(shell mkdir -p $(LOCAL_TMP) $(TOP_LIB))
 OBJ_COMMON=-MD $(CXX_COMMON) -Iinclude $(PYTHON_INCLUDE) -w -fpermissive
 LIB_COMMON=-Wl,-rpath,$(TOP_LIB) -ldl $(GZIP_LIB)
@@ -79,6 +80,9 @@ $(TOP_LIB)/pythia8.so: $(PYTHIA) $(HEADERS) $(OBJECTS)
 	$(CXX) $(OBJECTS) -o $@ $(CXX_COMMON) $(CXX_SHARED)\
 	 $(CXX_SONAME)$(notdir $@) $(LIB_COMMON) -L$(TOP_LIB)\
 	 -Wl,-rpath,$(PREFIX_LIB) -lpythia8 -Wl,-undefined,dynamic_lookup
+	@mkdir -p $(TOP_LIB)/python
+	if test -e $(LOCAL_EXTRA)/*.py; then\
+	 cp $(LOCAL_EXTRA)/*.py $(TOP_LIB)/python; fi
 
 # Clean.
 clean:

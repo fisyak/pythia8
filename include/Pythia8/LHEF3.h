@@ -1,5 +1,5 @@
 // LHEF3.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -180,7 +180,7 @@ struct XMLTag {
         string name = str.substr(curr, tend - curr);
         curr = str.find("=", curr) + 1;
 
-        // OK now find the beginning and end of the atribute.
+        // OK now find the beginning and end of the attribute.
         curr = str.find("\"", curr);
         if ( curr == end || curr >= close ) break;
         pos_t bega = ++curr;

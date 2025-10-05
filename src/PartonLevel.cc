@@ -1,5 +1,5 @@
 // PartonLevel.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 // Hard diffraction added by Christine Rasmussen.
@@ -28,9 +28,10 @@ const int PartonLevel::NTRY = 10;
 // Main routine to initialize the parton-level generation process.
 
 bool PartonLevel::init( TimeShowerPtr timesDecPtrIn,
-  TimeShowerPtr timesPtrIn, SpaceShowerPtr spacePtrIn, RHadrons* rHadronsPtrIn,
-  MergingHooksPtr mergingHooksPtrIn, PartonVertexPtr partonVertexPtrIn,
-  StringIntPtr stringInteractionsPtrIn,  bool useAsTrial ) {
+  TimeShowerPtr timesPtrIn, SpaceShowerPtr spacePtrIn,
+  RHadronsPtr rHadronsPtrIn, MergingHooksPtr mergingHooksPtrIn,
+  PartonVertexPtr partonVertexPtrIn, StringIntPtr stringInteractionsPtrIn,
+  bool useAsTrial ) {
 
   // Store other input pointers.
   beamHadAPtr           = beamAPtr;
@@ -41,7 +42,6 @@ bool PartonLevel::init( TimeShowerPtr timesDecPtrIn,
   rHadronsPtr           = rHadronsPtrIn;
   mergingHooksPtr       = mergingHooksPtrIn;
   partonVertexPtr       = partonVertexPtrIn;
-  colourReconnectionPtr = stringInteractionsPtrIn->getColourReconnections();
 
   // Reference to Settings.
   Settings& settings = *settingsPtr;
@@ -55,6 +55,8 @@ bool PartonLevel::init( TimeShowerPtr timesDecPtrIn,
                     || settings.flag("SoftQCD:singleDiffractiveAX");
   bool doDD          = settings.flag("SoftQCD:doubleDiffractive");
   bool doCD          = settings.flag("SoftQCD:centralDiffractive");
+  bool zeroAXB       = settings.mode("SigmaDiffractive:mode") == 1
+                    && settings.flag("SigmaTotal:zeroAXB");
   doNonDiff          = doSQ || doND;
   doDiffraction      = doSQ || doSD || doDD || doCD;
   doHardDiff         = settings.flag("Diffraction:doHard");
@@ -145,6 +147,8 @@ bool PartonLevel::init( TimeShowerPtr timesDecPtrIn,
   doReconnect        = settings.flag("ColourReconnection:reconnect");
   reconnectMode      = settings.mode("ColourReconnection:mode");
   forceResonanceCR   = settings.flag("ColourReconnection:forceResonance");
+  if (doReconnect) colourReconnectionPtr =
+    stringInteractionsPtrIn->getColourReconnections();
 
   // Some other flags.
   doRemnants         = settings.flag("PartonLevel:Remnants");
@@ -216,7 +220,7 @@ bool PartonLevel::init( TimeShowerPtr timesDecPtrIn,
   bool hasPointGammaLepton = ( beamAPtr->isUnresolved()
     && ( beamAisGamma || beamAPtr->isLepton() ) )
     && ( beamBPtr->isUnresolved()
-    && ( beamBisGamma || beamAPtr->isLepton() ) );
+    && ( beamBisGamma || beamBPtr->isLepton() ) );
   if ( (hasTwoLeptonBeams && hasPointLeptons) || hasPointGammaLepton ) {
     doISR            = false;
     doRemnants       = false;
@@ -224,8 +228,10 @@ bool PartonLevel::init( TimeShowerPtr timesDecPtrIn,
 
   // For ND events in lepton->gamma events no need to initialize MPIs for l+l-.
   doNDgamma = false;
-  if (beamHasResGamma)         doMPIinit = false;
   if (beamHasResGamma && doND) doNDgamma = true;
+  if (onlyDirGamma)            doMPIinit = false;
+  bool doMPIinitSave = doMPIinit;
+  if (beamHasResGamma)         doMPIinit = false;
 
   // Set info and initialize the respective program elements.
   if (timesPtr) timesPtr->init( beamAPtr, beamBPtr);
@@ -240,18 +246,20 @@ bool PartonLevel::init( TimeShowerPtr timesDecPtrIn,
     || hardDiffSide == 1) && beamBPtr->getGammaMode() < 2 ) ) {
     BeamParticle* tmpBeamA = (beamAhasGamma) ? beamGamAPtr : beamAPtr;
     if (infoPtr->isVMDstateA()) tmpBeamA = beamVMDAPtr;
-    doMPISDA = multiSDA.init( !onlyDirGamma, 1, tmpBeamA, beamPomBPtr,
-      partonVertexPtr, (beamAisGamma || beamAhasGamma) );
+    if (beamHasResGamma) doMPIinit = doMPIinitSave;
+    doMPISDA = multiSDA.init( doMPIinit, 1, tmpBeamA,
+      beamPomBPtr, partonVertexPtr, (beamAisGamma || beamAhasGamma) );
   }
   if (doSD || doDD || doSQ || ( doHardDiff && (hardDiffSide == 0
     || hardDiffSide == 2) && beamAPtr->getGammaMode() < 2 ) ) {
     BeamParticle* tmpBeamB = (beamBhasGamma) ? beamGamBPtr : beamBPtr;
     if (infoPtr->isVMDstateB()) tmpBeamB = beamVMDBPtr;
-    doMPISDB = multiSDB.init( !onlyDirGamma, 2, beamPomAPtr, tmpBeamB,
-      partonVertexPtr, (beamBisGamma || beamBhasGamma) );
+    if (beamHasResGamma) doMPIinit = doMPIinitSave;
+    doMPISDB = multiSDB.init( doMPIinit, 2, beamPomAPtr,
+      tmpBeamB, partonVertexPtr, (beamBisGamma || beamBhasGamma) );
   }
-  if (doCD || doSQ) doMPICD = multiCD.init( doMPIinit, 3, beamPomAPtr,
-    beamPomBPtr, partonVertexPtr);
+  if ((doCD || doSQ) && !zeroAXB) doMPICD = multiCD.init( doMPIinit, 3,
+    beamPomAPtr, beamPomBPtr, partonVertexPtr);
   if (!remnants.init( partonVertexPtr, colourReconnectionPtr)) return false;
   resonanceDecays.init();
   if (colourReconnectionPtr) colourReconnectionPtr->init();
@@ -280,6 +288,11 @@ bool PartonLevel::init( TimeShowerPtr timesDecPtrIn,
         partonVertexPtr, true);
     }
     doMPIMB = doMPIgmgm;
+
+  // Make sure that initialization does not fail because MPI not initialized
+  // for primary beams emitting photon beam.
+  } else if (beamHasResGamma && doMPIinit) {
+    doMPIMB = true;
   }
 
   // Succeeded, or not.
@@ -1441,7 +1454,9 @@ void PartonLevel::setupHardSys( Event& process, Event& event) {
   }
 
   // If incoming partons are massive then recalculate to put them massless.
-  if (process[inP].m() != 0. || process[inM].m() != 0.) {
+  // For DIS keep the massive kinematics to account for incoming lepton mass.
+  if ( (process[inP].m() != 0. || process[inM].m() != 0.)
+      && (!infoPtr->isDIS()) ) {
     double pPos = process[inP].pPos() + process[inM].pPos();
     double pNeg = process[inP].pNeg() + process[inM].pNeg();
     process[inP].pz( 0.5 * pPos);
@@ -3075,12 +3090,12 @@ bool PartonLevel::wzDecayShowers( Event& event) {
       for (int j = 0; j < 6; ++j) {
         Vec4 pDec1Test( 0., 0., 0., pDec1.e());
         Vec4 pDec2Test( 0., 0., 0., pDec2.e());
-        if      (j == 0) { pDec1Test.px(  pAbs12);  pDec1Test.px( -pAbs12);}
-        else if (j == 1) { pDec1Test.px( -pAbs12);  pDec1Test.px(  pAbs12);}
-        else if (j == 2) { pDec1Test.py(  pAbs12);  pDec1Test.py( -pAbs12);}
-        else if (j == 3) { pDec1Test.py( -pAbs12);  pDec1Test.py(  pAbs12);}
-        else if (j == 4) { pDec1Test.pz(  pAbs12);  pDec1Test.pz( -pAbs12);}
-        else if (j == 5) { pDec1Test.pz( -pAbs12);  pDec1Test.pz(  pAbs12);}
+        if      (j == 0) { pDec1Test.px(  pAbs12);  pDec2Test.px( -pAbs12);}
+        else if (j == 1) { pDec1Test.px( -pAbs12);  pDec2Test.px(  pAbs12);}
+        else if (j == 2) { pDec1Test.py(  pAbs12);  pDec2Test.py( -pAbs12);}
+        else if (j == 3) { pDec1Test.py( -pAbs12);  pDec2Test.py(  pAbs12);}
+        else if (j == 4) { pDec1Test.pz(  pAbs12);  pDec2Test.pz( -pAbs12);}
+        else if (j == 5) { pDec1Test.pz( -pAbs12);  pDec2Test.pz(  pAbs12);}
 
         // Evaluate matrix element and compare with current maximum.
         double p2p4Test = p4 * pDec1Test;

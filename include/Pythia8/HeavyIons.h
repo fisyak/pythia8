@@ -1,5 +1,5 @@
 // HeavyIons.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -84,6 +84,18 @@ public:
     loggerPtr->ERROR_MSG("method not implemented for this heavy ion model");
     return false; }
 
+  // Set beam particles.
+  virtual bool setBeamIDs(int /*idAIn*/, int /*idBIn*/ = 0) {
+    loggerPtr->ERROR_MSG("method not implemented for this heavy ion model");
+    return false; }
+
+  // The HIInfo object contains information about the last generated heavy
+  // ion event as well as overall statistics of the generated events.
+  HIInfo hiInfo;
+
+  // Print out statistics.
+  virtual void stat();
+
 protected:
 
   // Update the cross section in the main Pythia Info object using
@@ -104,13 +116,16 @@ protected:
   // in the given Pythia object.
   static void setupSpecials(Pythia& p, string match);
 
+  // Save current beam configuration.
+  int idProj, idTarg;
+
   // This is the pointer to the main Pythia object to which this
   // object is assigned.
   Pythia * mainPythiaPtr;
 
   // Object containing information on inclusive pp cross sections to
   // be used in Glauber calculations in subclasses.
-  SigmaTotal sigtot;
+  SigmaTotal sigTotNN;
 
   // Optional HIUserHooks object able to modify the behavior of the
   // HeavyIon model.
@@ -123,30 +138,19 @@ protected:
   // The names associated with the secondary pythia objects.
   vector<string> pythiaNames;
 
-  // The Info objects associated to the secondary the secondary
-  // pythia objects.
+  // The Info objects associated to the secondary Pythia objects.
   vector<Info*> info;
 
-  // Helper class to gain access to the Info object in a pythia
+  // Helper class to gain access to the Info object in a Pythia
   // instance.
   struct InfoGrabber : public UserHooks {
 
     // Only one function: return the info object.
-    Info * getInfo() {
+    Info* getInfo() {
       return infoPtr;
     }
 
   };
-
-public:
-
-  // This is the HIInfo object containing information about the last
-  // generated heavy ion event and som statistics of all such events
-  // generated since the last call to init();
-  HIInfo hiInfo;
-
-  // Print out statistics.
-  virtual void stat();
 
 };
 
@@ -189,21 +193,62 @@ public:
   bool setUserHooksPtr(PythiaObject sel, UserHooksPtr userHooksPtrIn);
 
   // Set beam kinematics.
+  bool setKinematicsCM();
   bool setKinematics(double eCMIn) override;
   bool setKinematics(double eAIn, double eBIn) override;
   bool setKinematics(double, double, double, double, double, double) override;
   bool setKinematics(Vec4, Vec4) override;
   bool setKinematics();
 
+  // Set beam IDs.
+  bool setBeamIDs(int idAIn, int idBIn = 0) override;
+
   // Make sure the correct information is available irrespective of frame type.
   void unifyFrames();
 
-  void banner(int idProj, int idTarg) const;
+  // Print the Angantyr banner.
+  void banner() const;
+
+  // Subcollisions for the current event.
+  const SubCollisionSet& subCollisions() const {
+    return subColls; }
+
+  // Get the underlying subcollision model.
+  const SubCollisionModel& subCollisionModel() const {
+    return *collPtr.get(); }
+
+  SubCollisionModel* subCollPtr() {
+    return collPtr.get();
+  }
+
+  // Get the underlying impact parameter generator.
+  const ImpactParameterGenerator impactParameterGenerator() const {
+    return *bGenPtr.get(); }
+
+  // Projectile nucleus configuration for the current event.
+  const Nucleus& projectile() const {
+    return proj; }
+
+  // Target nucleus configuration for the current event.
+  const Nucleus& target() const {
+    return targ; }
+
+  // The underlying projectile nucleus model.
+  const NucleusModel& projectileModel() const {
+    return *projPtr.get(); }
+
+  // The underlying target nucleus model.
+  const NucleusModel& targetModel() const {
+    return *targPtr.get(); }
+
+  // Hadronic cross sections used by the subcollision model.
+  const SigmaTotal sigmaNN() const {
+    return sigTotNN; }
 
 protected:
 
   virtual void onInitInfoPtr() override {
-    registerSubObject(sigtot); }
+    registerSubObject(sigTotNN); }
 
   // Figure out what beams the user want.
   void setBeamKinematics(int idA, int idB);
@@ -231,18 +276,18 @@ protected:
   EventInfo getMBIAS(const SubCollision * coll, int procid);
   EventInfo getSASD(const SubCollision * coll, int procid);
 
-  bool genAbs(SubCollisionSet& subCollisions, list<EventInfo>& subEvents);
-  void addSASD(const SubCollisionSet& subCollisions);
-  bool addDD(const SubCollisionSet& subCollisions, list<EventInfo>& subEvents);
-  bool addSD(const SubCollisionSet& subCollisions, list<EventInfo>& subEvents);
-  void addSDsecond(const SubCollisionSet& subCollisions);
-  bool addCD(const SubCollisionSet& subCollisions, list<EventInfo>& subEvents);
-  void addCDsecond(const SubCollisionSet& subCollisions);
-  bool addEL(const SubCollisionSet& subCollisions, list<EventInfo>& subEvents);
-  void addELsecond(const SubCollisionSet& subCollisions);
+  bool genAbs(SubCollisionSet& subCollsIn, list<EventInfo>& subEventsIn);
+  void addSASD(const SubCollisionSet& subCollsIn);
+  bool addDD(const SubCollisionSet& subCollsIn, list<EventInfo>& subEventsIn);
+  bool addSD(const SubCollisionSet& subCollsIn, list<EventInfo>& subEventsIn);
+  void addSDsecond(const SubCollisionSet& subCollsIn);
+  bool addCD(const SubCollisionSet& subCollsIn, list<EventInfo>& subEventsIn);
+  void addCDsecond(const SubCollisionSet& subCollsIn);
+  bool addEL(const SubCollisionSet& subCollsIn, list<EventInfo>& subEventsIn);
+  void addELsecond(const SubCollisionSet& subCollsIn);
 
-  bool buildEvent(list<EventInfo>& subEvents,
-    const Nucleus& proj, const Nucleus& targ);
+  void resetEvent();
+  bool buildEvent(list<EventInfo>& subEventsIn);
 
   bool setupFullCollision(EventInfo& ei, const SubCollision& coll,
     Nucleon::Status projStatus, Nucleon::Status targStatus);
@@ -276,7 +321,7 @@ protected:
 
   // Add a nucleus remnant to the given event. Possibly introducing
   // a new particle type.
-  bool addNucleusRemnants(const Nucleus& proj, const Nucleus& targ);
+  bool addNucleusRemnants();
 
 public:
 
@@ -363,9 +408,6 @@ private:
   static const int MAXTRY = 999;
   static const int MAXEVSAVE = 999;
 
-  // All subcollisions in current collision.
-  SubCollisionSet subColls;
-
   // Flag set if there is a specific signal process specified beyond
   // minimum bias.
   bool hasSignal;
@@ -379,17 +421,24 @@ private:
   // Flag to determine whether to do only Glauber modelling.
   bool glauberOnly;
 
+  // All subcollisions in current collision.
+  SubCollisionSet subColls;
+
+  // The underlying SubCollisionModel for generating nucleon-nucleon
+  // subcollisions.
+  shared_ptr<SubCollisionModel> collPtr;
+
   // The impact parameter generator.
   shared_ptr<ImpactParameterGenerator> bGenPtr;
+
+  // The projectile and target nuclei in the current collision.
+  Nucleus proj;
+  Nucleus targ;
 
   // The underlying nucleus model for generating nuclons inside the
   // projectile and target nucleus.
   shared_ptr<NucleusModel> projPtr;
   shared_ptr<NucleusModel> targPtr;
-
-  // The underlying SubCollisionModel for generating nucleon-nucleon
-  // subcollisions.
-  shared_ptr<SubCollisionModel> collPtr;
 
   // Flag to indicate whether variable energy is enabled.
   bool doVarECM;

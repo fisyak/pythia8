@@ -1,5 +1,5 @@
 // StringLength.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -25,7 +25,7 @@ class StringLength {
 public:
 
   // Constructor.
-  StringLength() : m0(), m0sqr(), sqrt2(), juncCorr(), lambdaForm(),
+  StringLength() : loggerPtr(), m0(), sqrt2(), juncCorr(), lambdaForm(),
     infoPtr() {}
 
   // Initialize.
@@ -34,19 +34,19 @@ public:
   // Calculate string length of a single particle.
   // The first vector is the 4 vector of the particle.
   // The second vector represents (1,0,0,0) in dipole restframe.
-  double getLength(Vec4 p, Vec4 v, bool isJunc = false);
+  double getLength(const Vec4& p, const Vec4& v, bool isJunc = false) const;
 
   // Calculate string length for two indices in the event record.
   double getStringLength(Event& event, int i, int j);
 
   // Calculate string length for two particles given their four-momenta.
-  double getStringLength(Vec4 p1, Vec4 p2);
+  double getStringLength(Vec4 p1, Vec4 p2) const;
 
   // Calculate the length of a single junction given the 3 entries in event.
   double getJuncLength(Event& event, int i, int j, int k);
 
   // Calculate the length of a single junction given the 3 four-momenta.
-  double getJuncLength(Vec4 p1, Vec4 p2, Vec4 p3);
+  double getJuncLength(const Vec4& p1, const Vec4& p2, const Vec4& p3) const;
 
   // Calculate the length of a double junction given the 4 entries in event.
   // The first two are expected to be quarks, the second two to be antiquarks.
@@ -54,13 +54,17 @@ public:
 
   // Calculate the length of a double junction given the 4 four-momenta.
   // The first two are expected to be quarks, the second two to be antiquarks.
-  double getJuncLength(Vec4 p1, Vec4 p2, Vec4 p3, Vec4 p4);
+  double getJuncLength(const Vec4& p1, const Vec4& p2, const Vec4& p3,
+    const Vec4& p4) const;
 
 private:
 
   static const double TINY, MINANGLE;
 
-  double m0, m0sqr, sqrt2, juncCorr;
+  // Pointer to logger.
+  Logger* loggerPtr;
+
+  double m0, sqrt2, juncCorr;
   int lambdaForm;
 
   // Pointer to various information on the generation.

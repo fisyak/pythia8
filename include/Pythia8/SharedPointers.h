@@ -1,5 +1,5 @@
 // SharedPointers.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -16,6 +16,9 @@ namespace Pythia8 {
 class BeamShape;
 typedef shared_ptr<BeamShape> BeamShapePtr;
 
+class Brancher;
+typedef shared_ptr<Brancher> BrancherPtr;
+
 class ColourDipole;
 typedef shared_ptr<ColourDipole> ColourDipolePtr;
 
@@ -31,6 +34,9 @@ typedef shared_ptr<DipoleSwingBase> DipSwingPtr;
 class ExternalMEs;
 typedef shared_ptr<ExternalMEs> ExternalMEsPtr;
 
+class FragmentationModel;
+typedef shared_ptr<FragmentationModel> FragmentationModelPtr;
+
 class FragmentationModifierBase;
 typedef shared_ptr<FragmentationModifierBase> FragModPtr;
 
@@ -45,6 +51,9 @@ typedef shared_ptr<LHAup> LHAupPtr;
 
 class LHEF3FromPythia8;
 typedef shared_ptr<LHEF3FromPythia8> LHEF3FromPythia8Ptr;
+
+class LundFragmentation;
+typedef shared_ptr<LundFragmentation> LundFragmentationPtr;
 
 class Merging;
 typedef shared_ptr<Merging> MergingPtr;
@@ -66,6 +75,9 @@ typedef shared_ptr<PhaseSpace> PhaseSpacePtr;
 
 class ResonanceWidths;
 typedef shared_ptr<ResonanceWidths> ResonanceWidthsPtr;
+
+class RHadrons;
+typedef shared_ptr<RHadrons> RHadronsPtr;
 
 class RndmEngine;
 typedef shared_ptr<RndmEngine> RndmEnginePtr;

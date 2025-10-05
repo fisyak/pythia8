@@ -55,12 +55,11 @@ library folder.
  
 <p/> 
 Currently, the MG5 ME plugins are used for matrix-element corrections in 
-Dire and Vincia, and to determine Born-level helicities for polarised 
-parton showers. The Pythia Settings words 
-<aloc href="DireExpert"><code>Dire:MEplugin</code></aloc> and 
+Vincia, and to assign Born-level helicities for its helicity-dependent 
+parton showers. The Pythia Settings word 
 <aloc href="VinciaMECs"><code>Vincia:MEplugin</code></aloc> specify 
-which plugin library to load, for Dire and Vincia, respectively. 
-The same libraries are compatible between Dire and Vincia and are named as 
+which plugin library to load. 
+The libraries are named as 
 <code>libpythia8mg5PLUGIN.so</code> where <code>PLUGIN</code> is 
 one of the matrix-element folders specified by the path optionally 
 passed to <code>--with-mg5mes=DIR</code>. 
@@ -237,7 +236,7 @@ The <code>LHAupMadgraph</code> is precisely such a class, derived from
 <code>LHAup</code>, that contains the code needed to wrap a 
 MadGraph5_aMC@NLO executable. Thereby the generation of Madgraph 
 processes from within Pythia becomes straightforward. An explicit 
-example is provided in <code>main34.cc</code>. We describe some of the 
+example is provided in <code>main153.cc</code>. We describe some of the 
 key elements used there and in the general case. 
  
 <method name="LHAupMadgraph::LHAupMadgraph(Pythia* pythia, 
@@ -335,4 +334,4 @@ initialization can be skipped after the initial run.
  
 </chapter> 
  
-<!-- Copyright (C) 2023 Torbjorn Sjostrand --> 
+<!-- Copyright (C) 2025 Torbjorn Sjostrand --> 

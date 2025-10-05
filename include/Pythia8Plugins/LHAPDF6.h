@@ -1,5 +1,5 @@
 // LHAPDF6.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -301,6 +301,7 @@ void LHAPDF6::calcPDFEnvelope(pair<int,int> idNows, pair<double,double> xNows,
 // Declare the plugin.
 
 PYTHIA8_PLUGIN_CLASS(PDF, LHAPDF6, false, false, false)
+PYTHIA8_PLUGIN_PARALLEL(true)
 PYTHIA8_PLUGIN_VERSIONS(PYTHIA_VERSION_INTEGER)
 
 //==========================================================================

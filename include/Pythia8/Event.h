@@ -1,5 +1,5 @@
 // Event.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -615,7 +615,9 @@ public:
   void listJunctions() const;
 
   // Tell whether event has Hidden Valley colours stored.
-  bool hasHVcols() const {return (hvCols.size() > 0);}
+  bool hasHVcols() const {
+    for (const HVcols& col: hvCols) {if (at(col.iHV).isFinal()) return true;}
+    return false;}
 
   // List any Hidden Valley colours. Find largest HV colour.
   void listHVcols() const;
@@ -631,6 +633,9 @@ public:
   // Operator overloading allows to append one event to an existing one.
   // Warning: particles should be OK, but some other information unreliable.
   Event& operator+=(const Event& addEvent);
+
+  // Direct access to the particles via constant pointer.
+  const vector<Particle>* particles() const {return &entry;}
 
 private:
 

@@ -1,5 +1,5 @@
 // Info.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -108,8 +108,11 @@ public:
   // Pointer to the UserHooks object set for the run.
   UserHooksPtr   userHooksPtr{};
 
+  // Mutex that should be locked for thread-unsafe code.
+  mutex*         mutexPtr{};
+
   // Pointer to information about a HeavyIons run and the current event.
-  // (Is NULL if HeavyIons object is inactive.)
+  // (Is nullptr if HeavyIons object is inactive.)
   HIInfo*        hiInfo{};
 
   WeightContainer* weightContainerPtr{};
@@ -182,6 +185,13 @@ public:
   double Q2Ren(int i = 0)     const {return Q2RenSave[i];}
   double scalup(int i = 0)    const {return scalupSave[i];}
 
+  // DIS-specific kinematic variables.
+  double Q2DIS()              const {return Q2DISSave;}
+  double WDIS()               const {return WDISSave;}
+  double xDIS()               const {return xDISSave;}
+  double yDIS()               const {return yDISSave;}
+  bool   isDIS()              const {return isDISSave;}
+
   // Kinematics of photons from lepton beams.
   double xGammaA()            const {return x1GammaSave;}
   double xGammaB()            const {return x2GammaSave;}
@@ -223,22 +233,16 @@ public:
   double weightSum()          const;
   double lhaStrategy()        const {return lhaStrategySave;}
 
-  // Further access to uncertainty weights: number and labels
-  int nWeights() const
-    { return weightContainerPtr->weightsShowerPtr->getWeightsSize(); }
-  string weightLabel(int iWeight) const {
-    return weightContainerPtr->weightsShowerPtr->getWeightsName(iWeight);
-    }
-
-  int    nWeightGroups() const { return weightContainerPtr->
-      weightsShowerPtr->nWeightGroups(); }
-  string getGroupName(int iGN) const {
-    return weightContainerPtr->weightsShowerPtr->getGroupName(iGN);
-  }
-  double getGroupWeight(int iGW) const {
-    return weightContainerPtr->weightsShowerPtr->getGroupWeight(iGW)
-      *weightContainerPtr->weightNominal;
-  }
+  // Further access to uncertainty weights: number and labels.
+  int    nWeights() const {
+    return weightContainerPtr->weightsShowerPtr->getWeightsSize() +
+      weightContainerPtr->weightsFragmentation.getWeightsSize() - 1;}
+  string weightLabel(int iWgt) const;
+  int    nWeightGroups() const {return weightContainerPtr->
+      weightsShowerPtr->nWeightGroups() + weightContainerPtr->
+      weightsFragmentation.nWeightGroups();}
+  string getGroupName(int iGN) const;
+  double getGroupWeight(int iGW) const;
 
   // Number of times other steps have been carried out.
   int    nISR()               const {return nISRSave;}
@@ -275,13 +279,54 @@ public:
 
   // Cross section estimate, optionally process by process.
   vector<int> codesHard();
-  string nameProc(int i = 0)  const {return (i == 0) ? "sum"
-    : ( (procNameM.at(i) == "") ? "unknown process" : procNameM.at(i) );}
-  long   nTried(int i = 0)    const {return (i == 0) ? nTry : nTryM.at(i);}
-  long   nSelected(int i = 0) const {return (i == 0) ? nSel : nSelM.at(i);}
-  long   nAccepted(int i = 0) const {return (i == 0) ? nAcc : nAccM.at(i);}
-  double sigmaGen(int i = 0)  const {return (i == 0) ? sigGen : sigGenM.at(i);}
-  double sigmaErr(int i = 0)  const {return (i == 0) ? sigErr : sigErrM.at(i);}
+
+  // Name of the specified process.
+  string nameProc(int i = 0)  const {
+    if (i == 0) return "sum";
+    auto itr = procNameM.find(i);
+    if (itr != procNameM.end()) return itr->second;
+    loggerPtr->ERROR_MSG("process code not found", to_string(i));
+    return "unknown process";}
+
+  // The number of phase-space points tried.
+  long   nTried(int i = 0) const {
+    if (i == 0) return nTry;
+    auto itr = nTryM.find(i);
+    if (itr != nTryM.end()) return itr->second;
+    loggerPtr->ERROR_MSG("process code not found", to_string(i));
+    return 0;}
+
+  // The number of selected hard processes.
+  long   nSelected(int i = 0) const {
+    if (i == 0) return nSel;
+    auto itr = nSelM.find(i);
+    if (itr != nSelM.end()) return itr->second;
+    loggerPtr->ERROR_MSG("process code not found", to_string(i));
+    return 0;}
+
+  // The number of accepted events.
+  long   nAccepted(int i = 0) const {
+    if (i == 0) return nAcc;
+    auto itr = nAccM.find(i);
+    if (itr != nAccM.end()) return itr->second;
+    loggerPtr->ERROR_MSG("process code not found", to_string(i));
+    return 0;}
+
+  // The estimated cross-section in units of mb.
+  double sigmaGen(int i = 0)  const {
+    if (i == 0) return sigGen;
+    auto itr = sigGenM.find(i);
+    if (itr != sigGenM.end()) return itr->second;
+    loggerPtr->ERROR_MSG("process code not found", to_string(i));
+    return 0;}
+
+  // The uncertainty on the estimated cross-section in units of mb.
+  double sigmaErr(int i = 0)  const {
+    if (i == 0) return sigErr;
+    auto itr = sigErrM.find(i);
+    if (itr != sigErrM.end()) return itr->second;
+    //loggerPtr->ERROR_MSG("process code not found", to_string(code));
+    return 0;}
 
   // Counters for number of loops in various places.
   int    getCounter( int i)   const {return counters[i];}
@@ -473,6 +518,10 @@ public:
   void setOniumShower(bool oniumShowerIn) {oniumShower = oniumShowerIn;}
   bool getOniumShower() const {return oniumShower;}
 
+  // Check whether in initialization stage (init) or generating events (next).
+  void setInInit(bool inInitIn) {inInitSave = inInitIn;}
+  bool getInInit() const {return inInitSave;}
+
   // From here on what used to be the private part of the class.
 
   // Allow conversion from mb to pb.
@@ -484,7 +533,7 @@ public:
          eCMSave{}, sSave{};
 
   // Store initialization information.
-  bool   lowPTmin;
+  bool   lowPTmin, inInitSave{};
 
   // Store common integrated cross section quantities.
   long   nTry{}, nSel{}, nAcc{};
@@ -517,6 +566,10 @@ public:
   vector<int>    codeMPISave, iAMPISave, iBMPISave;
   vector<double> pTMPISave, eMPISave;
 
+  // DIS-specific kinematic variables.
+  double Q2DISSave{}, WDISSave{}, xDISSave{}, yDISSave{};
+  bool   isDISSave{};
+
   // Variables related to photon kinematics.
   bool   isVMDstateAEvent{}, isVMDstateBEvent{};
   int    gammaModeEvent{}, idVMDASave{}, idVMDBSave{};
@@ -541,6 +594,10 @@ public:
     idBSave = idBin; pzBSave = pzBin; eBSave = eBin; mBSave = mBin;}
   void setECM( double eCMin) {eCMSave = eCMin; sSave = eCMSave * eCMSave;}
 
+  // Set info on DIS-specific kinematic variables.
+  void setDISKinematics(double Q2In, double WIn, double xIn, double yIn) {
+    Q2DISSave = Q2In; WDISSave = WIn; xDISSave = xIn; yDISSave = yIn;
+    isDISSave = true;}
   // Set info related to gamma+gamma subcollision.
   void setX1Gamma( double x1GammaIn)     { x1GammaSave    = x1GammaIn;   }
   void setX2Gamma( double x2GammaIn)     { x2GammaSave    = x2GammaIn;   }
@@ -717,6 +774,15 @@ public:
     return weightContainerPtr->weightValueVector(); }
   vector<string> weightNameVector() const {
     return weightContainerPtr->weightNameVector(); }
+
+  // The random state is saved before the generation of an event
+  // starts. To be used for debugging purposes.
+  RndmState currentEventRndmState{};
+  void dumpRandomState(string fileName="EventRandomState.dat") const;
+  void readRandomState(string fileName="EventRandomState.dat") const;
+
+  // Special variables for (below-threshold) toponium production.
+  double toponiumE, toponiumm3, toponiumm4;
 
 };
 

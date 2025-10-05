@@ -148,8 +148,8 @@ In detail, the list of used or foreseen status codes is:
   <li>85, 86 : primary produced hadrons in junction fragmentation of 
            the first two string legs in to the junction, 
            in order of treatment</li> 
-  <li>87, 88 : primary produced baryon from a junction (similar difference 
-               as for 83, 84)</li> 
+  <li>87, 88 : primary produced baryon from a junction, with technical 
+            difference similar to codes 83 and 84.</li> 
   <li>89 : primary produced baryon from a junction in the ministring 
            framework</li> 
   </ul> 
@@ -213,7 +213,7 @@ In detail, the list of used or foreseen status codes is:
   <li>159 : formation of a resonance particle</li> 
   </ul> 
 <li>181 - 189 : reserved for the tracking of a cascade through a medium. 
-  Is not (yet) used in the core code, but only in the <code>main183</code> 
+  Is not (yet) used in the core code, but only in the <code>main483</code> 
   example 
   <ul> 
   <li>181 : a nucleon hit in the medium, specifically the first 
@@ -656,6 +656,12 @@ and is therefore only used once per particle to set its mass
 <code>m()</code>. 
 </method> 
  
+<method name="double Particle::mSelInRange(double mMinNow, double mMaxNow)"> 
+same as <code>mSel()</code> above, but restricted to the range 
+between <code>mMinNow</code> and <code>mMaxNow</code>, which is assumed 
+to be a subrange of the <code>mMin()</code> to <code>mMax()</code> range. 
+</method> 
+ 
 <method name="double Particle::constituentMass()"> 
 will give the constituent masses for quarks and diquarks, 
 else the same masses as with <code>m0()</code>. 
@@ -1025,4 +1031,4 @@ particle species.
  
 </chapter> 
  
-<!-- Copyright (C) 2023 Torbjorn Sjostrand --> 
+<!-- Copyright (C) 2025 Torbjorn Sjostrand --> 

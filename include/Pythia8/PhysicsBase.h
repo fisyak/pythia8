@@ -1,13 +1,9 @@
 // PhysicsBase.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
 // This file contains the base class for physics classes used inside Pyhia8.
-
-// Still to convert:
-// BeamParticle
-// BeamShape
 
 #ifndef Pythia8_PhysicsBase_H
 #define Pythia8_PhysicsBase_H
@@ -17,6 +13,9 @@
 #include "Pythia8/SharedPointers.h"
 
 namespace Pythia8 {
+
+// Forward declaration of Pythia class.
+class Pythia;
 
 //==========================================================================
 
@@ -46,6 +45,10 @@ public:
   int    mode(string key) const {return settingsPtr->mode(key);}
   double parm(string key) const {return settingsPtr->parm(key);}
   string word(string key) const {return settingsPtr->word(key);}
+  vector<bool>   fvec(string key) const {return settingsPtr->fvec(key);}
+  vector<int>    mvec(string key) const {return settingsPtr->mvec(key);}
+  vector<double> pvec(string key) const {return settingsPtr->pvec(key);}
+  vector<string> wvec(string key) const {return settingsPtr->wvec(key);}
 
 protected:
 
@@ -65,6 +68,11 @@ protected:
 
   // This function is called from the Pythia::stat() call.
   virtual void onStat() {}
+
+  // This function is called from the PythiaParallel::stat() call.
+  // The argument is all thread instances of this PhysicsBase.
+  // Each instance can be recast as dynamic_cast<DerivedClass*>(ptr).
+  virtual void onStat(vector<PhysicsBase*>, Pythia*) {}
 
   // Register a sub object that should have its information in sync with this.
   void registerSubObject(PhysicsBase& pb);
@@ -94,15 +102,15 @@ protected:
 
   // Pointers to the two incoming beams and to Pomeron, photon or VMD
   // beam-inside-beam cases.
-  BeamSetup*     beamSetupPtr     = {};
-  BeamParticle*  beamAPtr         = {};
-  BeamParticle*  beamBPtr         = {};
-  BeamParticle*  beamPomAPtr      = {};
-  BeamParticle*  beamPomBPtr      = {};
-  BeamParticle*  beamGamAPtr      = {};
-  BeamParticle*  beamGamBPtr      = {};
-  BeamParticle*  beamVMDAPtr      = {};
-  BeamParticle*  beamVMDBPtr      = {};
+  BeamSetup*    beamSetupPtr    = {};
+  BeamParticle* beamAPtr        = {};
+  BeamParticle* beamBPtr        = {};
+  BeamParticle* beamPomAPtr     = {};
+  BeamParticle* beamPomBPtr     = {};
+  BeamParticle* beamGamAPtr     = {};
+  BeamParticle* beamGamBPtr     = {};
+  BeamParticle* beamVMDAPtr     = {};
+  BeamParticle* beamVMDBPtr     = {};
 
   // Pointer to information on subcollision parton locations.
   PartonSystems* partonSystemsPtr = {};
@@ -115,13 +123,17 @@ protected:
   // with This.
   set<PhysicsBase*> subObjects;
 
-  // Pointer to the UserHooks object (needs to be sett to null in
+  // Pointer to the UserHooks object (needs to be set to null in
   // classes deriving from UserHooks to avoid closed loop ownership).
-  UserHooksPtr   userHooksPtr;
+  UserHooksPtr      userHooksPtr;
+
+  // Mutex that should be locked for thread-unsafe code.
+  mutex* mutexPtr;
 
 private:
 
   friend class Pythia;
+  friend class PythiaParallel;
 
   // Calls onBeginEvent, then propagates the call to all sub objects
   void beginEvent();

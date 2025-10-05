@@ -1,159 +1,134 @@
 // main203.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
-// Authors: Peter Skands <peter.skands@monash.edu>
+// Authors: Juan Rojo <authors@pythia.org>
 
-// Keywords: madgraph; Vincia; weak showers
+// Keywords: parton distribution; LHAPDF
 
-// Example showing how to run Vincia's electroweak shower, for the example
-// process pp > dijets (with pThat >= 2000 GeV) at eCM = 14000 GeV.
-// The Vincia EW shower requires hard-process partons with assigned
-// helicities. This is done via Pythia's MG5 matrix-element interface.
+// This program compares the internal and LHAPDF implementations of
+// some NNPDF 2.3 QCD+QED sets, for results and for timing.
+// Warning: this example is constructed to work for LHAPDF5,
+// but current choice is LHAPDF6, which gives some differences.
 
-// Requires Pythia to be configured using the --with-mg5mes option.
-// For example (in main pythia83 directory): ./configure --with-mg5mes
-
-// Note: emitted weak bosons decay inclusively; it would be up to the user
-// themselves to filter events with decays to specific channels if desired.
-
-// Include Pythia8 header(s) and namespace.
 #include "Pythia8/Pythia.h"
+#include "Pythia8/Plugins.h"
 using namespace Pythia8;
 
-// Main Program
+//==========================================================================
+
 int main() {
 
-  //************************************************************************
+  cout<<"\n NNPDF3.1 QED LO phenomenology \n "<<endl;
+  cout<<"\n Check access to NNPDF3.1 NNLO QED sets \n "<<endl;
 
-  // Number of events and number of aborts to accept before stopping.
-  int    nEvent      = 500;
-  int    nAbort      = 2;
-
-  //**********************************************************************
-  // Define Pythia 8 generator
-
+  // Generator.
   Pythia pythia;
 
-  //**********************************************************************
+  // Access the PDFs.
+  int idBeamIn = 2212;
+  string pdfPath = pythia.settings.word("xmlPath") + "../pdfdata";
+  Logger logger;
 
-  // Shorthands
-  Event& event = pythia.event;
+  // Grid of studied points.
+  string xpdf[] = {"x*g","x*d","x*u","x*s"};
+  double xlha[] = {1e-5, 1e-1};
+  double Q2[] = { 2.0, 10000.0 };
+  string setName;
+  string setName_lha;
 
-  // Define settings common to all runs.
-  // We will print the event record ourselves (with helicities)
-  pythia.readString("Next:numberShowEvent  = 0");
+  // For timing checks.
+  int const nq = 500;
+  int const nx = 500;
+  int const iqMax = sizeof( xlha )/sizeof( xlha[0] );
 
-  // Beams and CM energy.
-  pythia.readString("Beams:idA  =  2212");
-  pythia.readString("Beams:idB  =  2212");
-  pythia.readString("Beams:eCM = 14000.0");
-  pythia.readString("Next:numberCount = 100");
+  // Loop over two internal PDF sets in Pythia8
+  // and compare with their LHAPDF correspondents.
+  for (int iFitIn = 3; iFitIn < 5; iFitIn++) {
 
-  // Process and MG5 library (see plugins/mg5mes/).
-  pythia.readString("HardQCD:all = on");
-  pythia.readString("PhaseSpace:pThatMin = 2000.0");
-  pythia.readString("Vincia:mePlugin = procs_qcd_sm");
+    // Constructor for LHAPDF.
+    if (iFitIn == 3) setName = "NNPDF31_nlo_as_0118_luxqed";
+    if (iFitIn == 4) setName = "NNPDF31_nnlo_as_0118_luxqed";
+    PDFPtr pdfs_nnpdf_lha =
+      make_plugin<PDF>("libpythia8lhapdf6.so", "LHAPDF6");
+    if (pdfs_nnpdf_lha == nullptr) return -1;
+    pdfs_nnpdf_lha->init(idBeamIn, setName, 0, &logger);
+    cout << "\n PDF set = " << setName << " \n" << endl;
 
-  // VINCIA settings
-  pythia.readString("PartonShowers:model   = 2");
-  pythia.readString("Vincia:helicityShower = on");
-  pythia.readString("Vincia:ewMode         = 3");
-  pythia.readString("Print:verbosity       = 2");
+    // Constructor for internal PDFs.
+    LHAGrid1 pdfs_nnpdf(
+      idBeamIn, setName + "_0000.dat", pdfPath, &logger);
 
-  // Switch off MPI and hadronisation (to speed things up).
-  pythia.readString("PartonLevel:MPI = off");
-  pythia.readString("HadronLevel:all = off");
-
-  // Initialize
-  if(!pythia.init()) { return EXIT_FAILURE; }
-
-  // Define counters and PYTHIA histograms.
-  double nGamSum   = 0.0;
-  double nWeakSum  = 0.0;
-  double nFinalSum = 0.0;
-  Hist histNFinal("nFinal", 100, -0.5, 99.5);
-  Hist histNGam("nPhotons", 20, -0.5, 19.5);
-  Hist histNWeak("nWeakBosons", 10, -0.5, 9.5);
-
-  //************************************************************************
-
-  // EVENT GENERATION LOOP.
-  // Generation, event-by-event printout, analysis, and histogramming.
-
-  // Counter for negative-weight events
-  double weight=1.0;
-  double sumWeights = 0.0;
-
-  // Begin event loop
-  int iAbort = 0;
-  for (int iEvent = 0; iEvent < nEvent; ++iEvent) {
-
-    bool aborted = !pythia.next();
-    if(aborted){
-      event.list();
-      if (++iAbort < nAbort){
-        continue;
-      }
-      cout << " Event generation aborted prematurely, owing to error!\n";
-      cout<< "Event number was : "<<iEvent<<endl;
-      break;
-    }
-
-    // Check for weights
-    weight = pythia.info.weight();
-    sumWeights += weight;
-
-    // Print event with helicities
-    if (iEvent == 0) event.list(true);
-
-    // Count FS final-state particles, weak bosons, and photons.
-    double nFinal = 0;
-    double nWeak  = 0;
-    double nGam   = 0;
-    for (int i=5;i<event.size();i++) {
-      // Count up final-state charged hadrons
-      if (event[i].isFinal()) {
-        ++nFinal;
-        // Final-state photons that are not from hadron decays
-        if (event[i].id() == 22 && event[i].status() < 90) ++nGam;
-      }
-      // Weak bosons (not counting hard process)
-      else if (event[i].idAbs() == 23 || event[i].idAbs() == 24) {
-        // Find weak bosons that were radiator or emitter.
-        if (event[i].status() != -51) continue;
-        nWeak += 0.5;
+    // Check quarks and gluons.
+    cout << setprecision(6);
+    for (int f = 0; f < 4; f++) {
+      for (int iq = 0; iq < iqMax; iq++) {
+        cout << "  " << xpdf[f] << ", Q2 = " << Q2[iq] << endl;
+        cout << "   x \t     Pythia8\t   LHAPDF\t   diff(%) " << endl;
+        for (int ix = 0; ix < 2; ix++) {
+          double a = pdfs_nnpdf.xf( f, xlha[ix], Q2[iq]);
+          double b = pdfs_nnpdf_lha->xf( f, xlha[ix], Q2[iq]);
+          double diff = b != 0 ? 1e2 * abs((a-b)/b) :
+            std::numeric_limits<double>::infinity();
+          cout << scientific << xlha[ix] << " " << a << " " << b
+               << " " << diff << endl;
+        }
       }
     }
-    histNWeak.fill(nWeak,weight);
-    histNFinal.fill(nFinal,weight);
-    histNGam.fill(nGam,weight);
-    nGamSum   += nGam * weight;
-    nWeakSum  += nWeak * weight;
-    nFinalSum += nFinal * weight;
 
-  }
+    // Check photon.
+    cout << "\n Now checking the photon PDF \n" << endl;
+    for (int iq = 0; iq < iqMax; iq++) {
+      cout << "  " << "x*gamma" << ", Q2 = " << Q2[iq] << endl;
+      cout << "   x \t     Pythia8\t   LHAPDF\t   diff(%) " << endl;
+      for (int ix = 0; ix < 2; ix++) {
+        double a = pdfs_nnpdf.xf( 22, xlha[ix], Q2[iq]);
+        double b = pdfs_nnpdf_lha->xf( 22, xlha[ix], Q2[iq]);
+        double diff = b != 0 ? 1e2 * abs((a-b)/b) :
+          std::numeric_limits<double>::infinity();
+        cout << scientific << xlha[ix] << " " << a << " " << b
+             << " " << diff << endl;
+      }
+    }
 
-  //**********************************************************************
+    // Now check the timings for evolution.
+    cout << "\n Checking timings " << endl;
 
-  // POST-RUN FINALIZATION
+    // Internal timing.
+    clock_t tBegin = clock();
+    for (int f = -4; f < 4; f++) {
+      for (int iq = 0; iq < nq; iq++) {
+        double qq2 = 2.0 * pow( 1e6 / 2.0, double(iq)/nq);
+        for (int ix = 0; ix < nx; ix++) {
+          double xx = 1e-6 * pow( 9e-1 / 1e-6, double(ix)/nx);
+          pdfs_nnpdf.xf(f,xx,qq2);
+        }
+      }
+    }
+    clock_t tEnd = clock();
+    double tUsed = double(tEnd - tBegin) / double(CLOCKS_PER_SEC);
+    cout << " NNPDF internal timing = " << tUsed << endl;
 
-  // Print out end-of-run information.
-  pythia.stat();
+    // External timing.
+    tBegin = clock();
+    for (int f = -4; f < 4; f++) {
+      for (int iq = 0; iq < nq; iq++) {
+        double qq2 = 2.0 * pow(1e6 / 2.0, double(iq)/nq);
+        for (int ix = 0; ix < nx; ix++) {
+          double xx = 1e-6 * pow( 9e-1 / 1e-6, double(ix)/nx);
+          pdfs_nnpdf_lha->xf(f,xx,qq2);
+        }
+      }
+    }
+    tEnd = clock();
+    tUsed = double(tEnd - tBegin) / double(CLOCKS_PER_SEC);
+    cout << " NNPDF LHAPDF   timing = " << tUsed << endl;
 
-  // Normalization.
-  double normFac = 1./sumWeights;
-
-  cout<< histNWeak << histNGam << histNFinal;
-
-  cout<<endl;
-  cout<<fixed;
-  cout<< " <nFinal>   = "<<num2str(nFinalSum * normFac)<<endl;
-  cout<< " <nPhotons> = "<<num2str(nGamSum * normFac)<<endl;
-  cout<< " <nZW>      = "<<num2str(nWeakSum * normFac)<<endl;
-  cout<<endl;
+  } // End loop over NNPDF internal sets
 
   // Done.
+  cout << "\n Compared LHAPDF and internal Pythia8 results.\n" << endl;
+
   return 0;
 }

@@ -124,11 +124,6 @@ Hard Processes</button>
 <aidx href="VinciaEW">QED/EW Showers</aidx><br/> 
 &nbsp;&nbsp;--&nbsp;&nbsp; 
 <aidx href="VinciaMECs">ME Corrections</aidx><br/> 
-<aidx href="DireShowers">The Dire Shower</aidx><br/> 
-&nbsp;&nbsp;--&nbsp;&nbsp; 
-<aidx href="DireWeights">Enhancements</aidx><br/> 
-&nbsp;&nbsp;--&nbsp;&nbsp; 
-<aidx href="DireExpert">Expert Settings</aidx><br/> 
 <aidx href="ImplementNewShowers">Implement New Showers</aidx><br/> 
 </div> 
  
@@ -136,7 +131,7 @@ Hard Processes</button>
 <div class="panel"> 
 <aidx href="MatchingAndMerging">Matching and Merging</aidx><br/> 
 &nbsp;&nbsp;--&nbsp;&nbsp; 
-<aidx href="POWHEGMerging">POWHEG Matching</aidx><br/> 
+<aidx href="POWHEGMatching">POWHEG Matching</aidx><br/> 
 &nbsp;&nbsp;--&nbsp;&nbsp; 
 <aidx href="aMCatNLOMatching">aMC@NLO Matching</aidx><br/> 
 &nbsp;&nbsp;--&nbsp;&nbsp; 
@@ -163,22 +158,30 @@ Hard Processes</button>
 <aidx href="ExternalDecays">External Decays</aidx><br/> 
 </div> 
  
-<button class="expand" style="font-size:20px;">Hadronisation</button> 
+<button class="expand" style="font-size:20px;">Hadronization</button> 
 <div class="panel"> 
+<aidx href="HadronizationOverview">Hadronization Overview</aidx><br/> 
 <aidx href="BeamRemnants">Beam Remnants</aidx><br/> 
 <aidx href="ColourReconnection">Colour Reconnection</aidx><br/> 
-<aidx href="Fragmentation">String Fragmentation</aidx><br/> 
+<aidx href="PartonVertexInformation">Parton Vertex Information</aidx><br/> 
+<aidx href="StringFragmentation">Lund String Fragmentation</aidx><br/> 
 &nbsp;&nbsp;--&nbsp;&nbsp; 
 <aidx href="FlavourSelection">Flavour Selection</aidx><br/> 
 &nbsp;&nbsp;--&nbsp;&nbsp; 
+<aidx href="PTSelection">pT Selection</aidx><br/> 
+&nbsp;&nbsp;--&nbsp;&nbsp; 
+<aidx href="ZSelection">z Selection</aidx><br/> 
+<aidx href="ThermalFragmentation">Thermal Fragmentation</aidx><br/> 
+<aidx href="HadronizationVariations">Hadronization Variations</aidx><br/> 
 <aidx href="RopeHadronization">Rope Hadronization</aidx><br/> 
-<aidx href="PartonVertexInformation">Parton Vertex Information</aidx><br/> 
+<aidx href="ClosePacking">Close-Packing</aidx><br/> 
 <aidx href="HadronVertexInformation">Hadron Vertex Information</aidx><br/> 
 <aidx href="HadronicRescattering">Hadronic Rescattering</aidx><br/> 
 <aidx href="RHadrons">R-hadrons</aidx><br/> 
 <aidx href="BoseEinsteinEffects">Bose-Einstein Effects</aidx><br/> 
 <aidx href="DeuteronProduction">Deuteron Production</aidx><br/> 
 <aidx href="HadronLevelStandalone">Hadron-Level Standalone</aidx><br/> 
+<aidx href="ImplementNewFragmentation">Implement New Fragmentation</aidx><br/> 
 </div> 
  
 <button class="expand" style="font-size:20px;">Study Output</button> 
@@ -215,15 +218,12 @@ Hard Processes</button>
 <aidx href="Bibliography">Bibliography</aidx><br/> 
 <aidx href="Glossary">Glossary</aidx><br/> 
 <aidx href="Version">Version</aidx> <br/> 
-<aidx href="ProgramFiles">Program Files</aidx><br/> 
-<aidx href="ProgramClasses">Program Classes</aidx><br/> 
-<aidx href="ProgramMethods">Program Methods</aidx><br/> 
 </div> 
  
 <button class="expand" style="font-size:20px;">Separate Documents</button> 
 <div class="panel"> 
 <a href="../pdfdoc/pythia8300.pdf" target="page">Introduction</a><br/> 
-<a href="../pdfdoc/worksheet8309.pdf" target="page">Worksheet</a> 
+<a href="../pdfdoc/worksheet8312.pdf" target="page">Worksheet</a> 
 </div> 
  
 <button class="expandAll" style="font-size:20px;">All</button> 
@@ -231,4 +231,4 @@ Hard Processes</button>
 <script src="Expand.js"></script> 
 </chapter> 
  
-<!-- Copyright (C) 2023 Torbjorn Sjostrand --> 
+<!-- Copyright (C) 2025 Torbjorn Sjostrand --> 

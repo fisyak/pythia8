@@ -1,5 +1,5 @@
 // FragmentationFlavZpT.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Torbjorn Sjostrand.
+// Copyright (C) 2025 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -19,14 +19,6 @@
 #include "Pythia8/Settings.h"
 
 namespace Pythia8 {
-
-//==========================================================================
-
-// Functions for unnormalised and average Lund FF.
-
-double LundFFRaw(double z, double a, double b, double c, double mT2);
-
-double LundFFAvg(double a, double b, double c, double mT2, double tol);
 
 //==========================================================================
 
@@ -86,19 +78,16 @@ class StringFlav : public PhysicsBase {
 public:
 
   // Constructor.
-  StringFlav() :
-    suppressLeadingB(),
-    mT2suppression(), useWidthPre(), probQQtoQ(), probStoUD(), probSQtoQQ(),
+  StringFlav() : suppressLeadingB(), probQQtoQ(), probStoUD(), probSQtoQQ(),
     probQQ1toQQ0(), probQandQQ(), probQandS(), probQandSinQQ(), probQQ1corr(),
     probQQ1corrInv(), probQQ1norm(), probQQ1join(), mesonRate(),
     mesonRateSum(), mesonMix1(), mesonMix2(), etaSup(), etaPrimeSup(),
     decupletSup(), baryonCGSum(), baryonCGMax(), popcornRate(), popcornSpair(),
-    popcornSmeson(), scbBM(), popFrac(), popS(), dWT(), lightLeadingBSup(),
-    heavyLeadingBSup(), sigmaHad(), widthPreStrange(), widthPreDiquark(),
-    thermalModel(), mesonNonetL1(), temperature(), tempPreFactor(),
-    nNewQuark(), mesMixRate1(), mesMixRate2(), mesMixRate3(),
-    baryonOctWeight(), baryonDecWeight(), closePacking(), exponentMPI(),
-    exponentNSP(), hadronIDwin(0), idNewWin(0), hadronMassWin(-1.0) {}
+    popcornSmeson(), barCGMax(), scbBM(), popFrac(), popS(), dWT(),
+    lightLeadingBSup(), heavyLeadingBSup(), probStoUDSav(), probQQtoQSav(),
+    probSQtoQQSav(), probQQ1toQQ0Sav(), alphaQQSav(), closePacking(),
+    doEnhanceDiquark(), enhanceStrange(), enhancePT(), enhanceDiquark(),
+    exponentMPI(), exponentNSP() {}
 
   // Destructor.
   virtual ~StringFlav() {}
@@ -106,24 +95,20 @@ public:
   // Initialize data members.
   virtual void init();
 
+  // Initialise parameters when using close packing.
+  virtual void init(double kappaModifier, double strangeJunc,
+    double probQQmod);
+
   // Pick a light d, u or s quark according to fixed ratios.
   int pickLightQ() { double rndmFlav = probQandS * rndmPtr->flat();
     if (rndmFlav < 1.) return 1;
     if (rndmFlav < 2.) return 2;
     return 3; }
 
-  // Pick a new flavour (including diquarks) given an incoming one,
-  // either by old standard Gaussian or new alternative exponential.
-  virtual FlavContainer pick(FlavContainer& flavOld, double pT = -1.0,
-    double nNSP = 0.0, bool allowPop = true) {
-    hadronIDwin = 0; idNewWin = 0; hadronMassWin = -1.0;
-    if ( (thermalModel || mT2suppression) && (pT >= 0.0) )
-      return pickThermal(flavOld, pT, nNSP);
-    return pickGauss(flavOld, allowPop); }
-  virtual FlavContainer pickGauss(FlavContainer& flavOld,
-    bool allowPop = true);
-  virtual FlavContainer pickThermal(FlavContainer& flavOld,
-    double pT, double nNSP);
+  // Pick a new flavour (including diquarks) given an incoming one.
+  // Optional arguments: pT, kappaModifier, allowPop.
+  virtual FlavContainer pick(FlavContainer& flavOld,
+    double = -1., double = -1., bool allowPop = true);
 
   // Combine two flavours (including diquarks) to produce a hadron.
   virtual int combine(FlavContainer& flav1, FlavContainer& flav2);
@@ -134,33 +119,24 @@ public:
     for (int i = 0; i < 100; ++i) { int idNew = combine( flag1, flag2);
       if (idNew != 0 || !keepTrying) return idNew;} return 0;}
 
+  // Combine three (di-) quark flavours into two hadrons.
+  virtual pair<int,int> combineDiquarkJunction(int id1, int id2, int id3);
+
   // Combine two flavours to produce a hadron with lowest possible mass.
   virtual int combineToLightest( int id1, int id2);
 
   // Lightest flavour-neutral meson.
   virtual int idLightestNeutralMeson() { return 111; }
 
-  // Return chosen hadron in case of thermal model.
-  virtual int getHadronIDwin() { return hadronIDwin; }
-
-  // Combine two flavours into hadron for last two remaining flavours
-  // for thermal model.
-  virtual int combineLastThermal(FlavContainer& flav1, FlavContainer& flav2,
-    double pT, double nNSP);
-
   // General function, decides whether to just return the hadron id
   // if thermal model was use or whether to combine the two flavours.
   virtual int getHadronID(FlavContainer& flav1, FlavContainer& flav2,
-    double pT = -1.0, double nNSP = 0, bool finalTwo = false) {
-    if (finalTwo) return ((thermalModel || mT2suppression) ?
-      combineLastThermal(flav1, flav2, pT, nNSP) : combine(flav1, flav2));
-    if ((thermalModel || mT2suppression)&& (hadronIDwin != 0)
-      && (idNewWin != 0)) return getHadronIDwin();
+    double = -1.0, double = -1.0, bool = false) {
     return combine(flav1, flav2); }
 
-  // Return hadron mass. Used one if present, pick otherwise.
-  virtual double getHadronMassWin(int idHad) { return
-    ((hadronMassWin < 0.0) ? particleDataPtr->mSel(idHad) : hadronMassWin); }
+  // Return hadron mass.
+  virtual double getHadronMassWin(int idHad) {
+    return particleDataPtr->mSel(idHad); }
 
   // Assign popcorn quark inside an original (= rank 0) diquark.
   void assignPopQ(FlavContainer& flav);
@@ -186,49 +162,55 @@ public:
     if (hadronID > 20000) return 4;
     return -1; }
 
+  // Get the flavour and spin ratios calculated from the diquark weights.
+  // i: (0) q -> B B, (1) q -> B M B, (2) qq -> M B
+  // j: (0) s/u popcorn ratio, (1/2) s/u ratio for vertex quark if popcorn
+  //    quark is u/d or s, (3) q/q' vertex quark ratio if popcorn quark is
+  //    light and = q, (4/5/6) (spin 1)/(spin 0) ratio for su, us and ud
+  double getFlavourSpinRatios(int i, int j) {
+    return (i < 3 && j < 7) ? dWT[i][j] : -1.0;}
+
 protected:
+
+  // Initialise derived parameters.
+  virtual void initDerived();
 
   // Constants: could only be changed in the code itself.
   static const int    mesonMultipletCode[6];
   static const double baryonCGOct[6], baryonCGDec[6];
 
-  // Settings for Gaussian model.
-  bool   suppressLeadingB, mT2suppression, useWidthPre;
+  // Settings for default Gaussian model.
+  bool   suppressLeadingB;
   double probQQtoQ, probStoUD, probSQtoQQ, probQQ1toQQ0, probQandQQ,
          probQandS, probQandSinQQ, probQQ1corr, probQQ1corrInv, probQQ1norm,
          probQQ1join[4], mesonRate[4][6], mesonRateSum[4], mesonMix1[2][6],
          mesonMix2[2][6], etaSup, etaPrimeSup, decupletSup, baryonCGSum[6],
-         baryonCGMax[6], popcornRate, popcornSpair, popcornSmeson, scbBM[3],
-         popFrac, popS[3], dWT[3][7], lightLeadingBSup, heavyLeadingBSup;
-  double sigmaHad, widthPreStrange, widthPreDiquark;
+         baryonCGMax[6], popcornRate, popcornSpair, popcornSmeson, barCGMax[8],
+         scbBM[3], popFrac, popS[3], dWT[3][7], lightLeadingBSup,
+         heavyLeadingBSup;
+  bool   qqKappa;
+  double probStoUDSav, probQQtoQSav, probSQtoQQSav, probQQ1toQQ0Sav,
+         alphaQQSav;
 
-  // Settings for thermal model.
-  bool   thermalModel, mesonNonetL1;
-  double temperature, tempPreFactor;
-  int    nNewQuark;
-  double mesMixRate1[2][6], mesMixRate2[2][6], mesMixRate3[2][6];
-  double baryonOctWeight[6][6][6][2], baryonDecWeight[6][6][6][2];
+  // Settings for closepacking.
+  bool   closePacking, doEnhanceDiquark;
+  double enhanceStrange, enhancePT, enhanceDiquark, exponentMPI, exponentNSP;
 
-  // Settings used by both models.
-  bool   closePacking;
-  double exponentMPI, exponentNSP;
-
-  // Key = hadron id, value = list of constituent ids.
-  map< int, vector< pair<int,int> > > hadronConstIDs;
-  // Key = initial (di)quark id, value = list of possible hadron ids
-  //                                     + nr in hadronConstIDs.
-  map< int, vector< pair<int,int> > > possibleHadrons;
-  // Key = initial (di)quark id, value = prefactor to multiply rate.
-  map< int, vector<double> > possibleRatePrefacs;
-  // Similar, but for combining the last two (di)quarks. Key = (di)quark pair.
-  map< pair<int,int>, vector< pair<int,int> > > possibleHadronsLast;
-  map< pair<int,int>, vector<double> > possibleRatePrefacsLast;
-
-  // Selection in thermal model.
-  int    hadronIDwin, idNewWin;
-  double hadronMassWin;
+  // Fragmentation weights container.
+  WeightsFragmentation* wgtsPtr{};
 
 };
+
+//==========================================================================
+
+// Functions for unnormalised, <z>, and RMSD(z) of Lund FF. The two latter
+// return negative values in case of failure.
+
+double LundFFRaw(double z, double a, double b, double c, double mT2);
+
+double LundFFAvg(double a, double b, double mT2, double tol);
+
+double LundFFRms(double a, double b, double mT2, double tol);
 
 //==========================================================================
 
@@ -240,23 +222,28 @@ public:
 
   // Constructor.
   StringZ() : useNonStandC(), useNonStandB(), useNonStandH(), usePetersonC(),
-    usePetersonB(), usePetersonH(), mc2(), mb2(), aLund(), bLund(),
-    aExtraSQuark(), aExtraDiquark(), rFactC(), rFactB(), rFactH(), aNonC(),
-    aNonB(), aNonH(), bNonC(), bNonB(), bNonH(), epsilonC(), epsilonB(),
-    epsilonH(), stopM(), stopNF(), stopS() {}
+    usePetersonB(), usePetersonH(), useOldAExtra(), mc2(), mb2(),
+    aLund(), bLund(), aExtraSQuark(), aExtraDiquark(), rFactC(),
+    rFactB(), rFactH(), aNonC(), aNonB(), aNonH(), bNonC(), bNonB(),
+    bNonH(), epsilonC(), epsilonB(), epsilonH(), stopM(), stopNF(),
+    stopS() {}
 
   // Destructor.
   virtual ~StringZ() {}
 
   // Initialize data members.
-  virtual void init();
+  virtual bool init();
 
   // Fragmentation function: top-level to determine parameters.
   virtual double zFrag( int idOld, int idNew = 0, double mT2 = 1.);
 
   // Fragmentation function: select z according to provided parameters.
-  virtual double zLund( double a, double b, double c = 1.);
+  virtual double zLund( double a, double b, double c = 1.,
+    double head = 1., double bNow = 0., int idFrag = 0,
+    bool isOldSQuark = false, bool isNewSQuark = false,
+    bool isOldDiquark = false, bool isNewDiquark = false);
   virtual double zPeterson( double epsilon);
+  virtual double zLundMax( double a, double b, double c = 1.);
 
   // Parameters for stopping in the middle; overloaded for Hidden Valley.
   virtual double stopMass() {return stopM;}
@@ -267,20 +254,26 @@ public:
   virtual double aAreaLund() {return aLund;}
   virtual double bAreaLund() {return bLund;}
 
+  // Method to derive both a and b parameters (from <z> and RMSD(z)).
+  bool deriveABLund( bool derivaA = false, bool deriveAExtraDiquark = false,
+                     bool deriveAExtraSQuark = false);
   // Method to derive bLund from <z> (for fixed a and reference mT2).
-  bool deriveBLund();
+  double deriveBLund( double avgZ, double a, double mT2ref);
 
-protected:
+ protected:
 
   // Constants: could only be changed in the code itself.
   static const double CFROMUNITY, AFROMZERO, AFROMC, EXPMAX;
 
   // Initialization data, to be read from Settings.
   bool   useNonStandC, useNonStandB, useNonStandH,
-         usePetersonC, usePetersonB, usePetersonH;
+         usePetersonC, usePetersonB, usePetersonH, useOldAExtra;
   double mc2, mb2, aLund, bLund, aExtraSQuark, aExtraDiquark, rFactC,
          rFactB, rFactH, aNonC, aNonB, aNonH, bNonC, bNonB, bNonH,
          epsilonC, epsilonB, epsilonH, stopM, stopNF, stopS;
+
+  // Fragmentation weights container.
+  WeightsFragmentation* wgtsPtr{};
 
 };
 
@@ -293,10 +286,8 @@ class StringPT : public PhysicsBase {
 public:
 
   // Constructor.
-  StringPT() : useWidthPre(), sigmaQ(), enhancedFraction(), enhancedWidth(),
-    sigma2Had(), widthPreStrange(), widthPreDiquark(), thermalModel(),
-    temperature(), tempPreFactor(), fracSmallX(), closePacking(),
-    exponentMPI(), exponentNSP() {}
+  StringPT() : sigmaQ(), enhancedFraction(), enhancedWidth(), sigma2Had(),
+    closePacking(), enhancePT(), exponentMPI(), exponentNSP() {}
 
   // Destructor.
   virtual ~StringPT() {}
@@ -304,17 +295,11 @@ public:
   // Initialize data members.
   virtual void init();
 
-  // General function, return px and py as a pair in the same call
-  // in either model.
-  pair<double, double>  pxy(int idIn, double nNSP = 0.0) {
-    return (thermalModel ? pxyThermal(idIn, nNSP) :
-    pxyGauss(idIn, nNSP)); }
-  pair<double, double>  pxyGauss(int idIn = 0, double nNSP = 0.0);
-  pair<double, double>  pxyThermal(int idIn, double nNSP = 0.0);
+  // Return px and py as a pair.
+  virtual pair<double, double>  pxy(int idIn = 0, double kappaModifier = -1.0);
 
   // Gaussian suppression of given pT2; used in MiniStringFragmentation.
-  double suppressPT2(double pT2) { return (thermalModel ?
-    exp(-sqrt(pT2)/temperature) : exp(-pT2/sigma2Had)); }
+  virtual double suppressPT2(double pT2) { return exp(-pT2/sigma2Had); }
 
 protected:
 
@@ -322,21 +307,18 @@ protected:
   static const double SIGMAMIN;
 
   // Initialization data, to be read from Settings.
-  // Gaussian model.
-  bool   useWidthPre;
-  double sigmaQ, enhancedFraction, enhancedWidth, sigma2Had,
-         widthPreStrange, widthPreDiquark;
-  // Thermal model.
-  bool   thermalModel;
-  double temperature, tempPreFactor, fracSmallX;
-  // Both.
+  double sigmaQ, enhancedFraction, enhancedWidth, sigma2Had;
+  // Optional enhanced pT widths for strange and/or diquarks.
+  bool useWidthPre{false};
+  double widthPreStrange{1.}, widthPreQQ0{1.}, widthPreQQ1{1.};
+  // Special for closepacking.
   bool   closePacking;
-  double exponentMPI, exponentNSP;
+  double enhancePT, exponentMPI, exponentNSP;
 
 private:
 
-  // Evaluate Bessel function K_{1/4}(x).
-  double BesselK14(double x);
+  // Fragmentation weights container.
+  WeightsFragmentation* wgtsPtr{};
 
 };
 

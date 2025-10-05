@@ -1,5 +1,5 @@
 // ExternalMEsMadgraph.h is a part of the PYTHIA event generator.
-// Copyright (C) 2023 Peter Skands, Stefan Prestel, Philip Ilten, Torbjorn
+// Copyright (C) 2025 Peter Skands, Stefan Prestel, Philip Ilten, Torbjorn
 // Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
@@ -23,6 +23,7 @@ namespace Pythia8 {
 
 //==========================================================================
 
+// External matrix element class specifically for MadGraph.
 
 class ExternalMEsMadgraph : public ExternalMEs {
 
@@ -37,18 +38,17 @@ public:
     if (modelPtr != nullptr) delete modelPtr;}
 
   // Initialisers.
-  bool init() override;
-  bool initVincia(Info* infoPtrIn) override;
-  bool initDire(Info*, string card) override;
+  bool init(Info* infoPtrIn) override;
 
   // Methods to check availability of matrix elements.
   bool isAvailable(vector<int> idIn, vector<int> idOut) override;
   bool isAvailable(const Pythia8::Event& event) override;
+  bool isAvailable(const Pythia8::Event& event, int iBeg = 3) override;
   bool isAvailable(const vector<Particle>& state) override;
 
   // Get the matrix element squared for a particle state.
   double calcME2(const vector<Particle>& state) override;
-  double calcME2(const Event& event) override;
+  double calcME2(const Event& event, const int iBeg = 3) override;
 
 private:
 
@@ -69,11 +69,9 @@ private:
 
 //--------------------------------------------------------------------------
 
-// Initialise the Madgraph model, parameters, and couplings for use in Vincia.
+// Initialise the Madgraph model, parameters, and couplings.
 
-bool ExternalMEsMadgraph::init() {return true;}
-
-bool ExternalMEsMadgraph::initVincia(Info* infoPtrIn) {
+bool ExternalMEsMadgraph::init(Info* infoPtrIn) {
 
   // Check if pointers initialized.
   initPtrs(infoPtrIn);
@@ -137,34 +135,6 @@ bool ExternalMEsMadgraph::initVincia(Info* infoPtrIn) {
 
 }
 
-bool ExternalMEsMadgraph::initDire(Info*, string card) {
-
-  // Redirect output so that Dire can print MG5 initialization.
-  std::streambuf *old = cout.rdbuf();
-  stringstream ss;
-  cout.rdbuf (ss.rdbuf());
-  if (libPtr != nullptr) delete libPtr;
-  libPtr = new PY8MEs_namespace::PY8MEs(card);
-  // Do not include averaging or symmetry factors in MG5.
-  libPtr->seProcessesIncludeSymmetryFactors(false);
-  libPtr->seProcessesIncludeHelicityAveragingFactors(false);
-  libPtr->seProcessesIncludeColorAveragingFactors(false);
-  libPtr->setProcessesExternalMassesMode(1);
-  // Set whether symmetry and averaging factors are applied in calcME2().
-  inclSymFac    = false;
-  inclHelAvgFac = true;
-  inclColAvgFac = true;
-  // Leading-colour colour-ordered amplitude only (can be reset later).
-  colMode = 1;
-  // Implicitly sum over helicities (can be reset later).
-  helMode = 1;
-  // Restore print-out.
-  cout.rdbuf (old);
-
-  return true;
-
-}
-
 //--------------------------------------------------------------------------
 
 // Check if a matrix element is available.
@@ -180,6 +150,17 @@ bool ExternalMEsMadgraph::isAvailable(const Event& event) {
 
   vector <int> in, out;
   fillIds(event, in, out);
+  set<int> req_s_channels;
+
+  PY8MEs_namespace::PY8ME* query
+    = libPtr->getProcess(in, out, req_s_channels);
+  return (query != nullptr);
+}
+
+bool ExternalMEsMadgraph::isAvailable(const Event& event, const int iBeg) {
+
+  vector <int> in, out;
+  fillIds(event, in, out, iBeg);
   set<int> req_s_channels;
 
   PY8MEs_namespace::PY8ME* query
@@ -212,21 +193,21 @@ double ExternalMEsMadgraph::calcME2(const vector<Particle>& state) {
   vector<vector<double>> pn;
   fillLists(state, idIn, idOut, hels, cols, pn);
   int nIn = idIn.size();
-  if (nIn <= 0) return -1.;
-  else if (state.size() - nIn < 1) return -1.;
+  if (nIn <= 0 || state.size() - nIn < 1) return -1.;
 
   return calcME2(idIn, idOut, pn, hels, cols);
 
 }
 
-double ExternalMEsMadgraph::calcME2(const Pythia8::Event& event) {
+double ExternalMEsMadgraph::calcME2(const Pythia8::Event& event,
+  const int iBeg) {
 
   // Prepare lists.
   vector<int> in, out;
-  fillIds(event, in, out);
+  fillIds(event, in, out, iBeg);
   vector<int> cols;
-  fillCols(event, cols);
-  vector< vector<double> > pvec = fillMoms(event);
+  fillCols(event, cols, iBeg);
+  vector< vector<double> > pvec = fillMoms(event, iBeg);
   vector<int> helicities;
 
   return calcME2(in, out, pvec, helicities, cols);
@@ -360,6 +341,7 @@ void ExternalMEsMadgraph::fillLists(const vector<Particle>& state,
 // Declare the plugin.
 
 PYTHIA8_PLUGIN_CLASS(ExternalMEs, ExternalMEsMadgraph, false, false, false)
+PYTHIA8_PLUGIN_PARALLEL(true);
 PYTHIA8_PLUGIN_VERSIONS(PYTHIA_VERSION_INTEGER)
 
 //==========================================================================
