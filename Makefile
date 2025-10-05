@@ -1,5 +1,5 @@
 # Makefile is a part of the PYTHIA event generator.
-# Copyright (C) 2023 Torbjorn Sjostrand.
+# Copyright (C) 2025 Torbjorn Sjostrand.
 # PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 # Please respect the MCnet Guidelines, see GUIDELINES for details.
 # Author: Philip Ilten, October 2014 - November 2017.
@@ -36,7 +36,7 @@ LOCAL_TMP=tmp
 LOCAL_MKDIRS:=$(shell mkdir -p $(LOCAL_TMP) $(LOCAL_LIB))
 CXX_COMMON:=-I$(LOCAL_INCLUDE) $(CXX_COMMON)
 OBJ_COMMON:=-MD $(CXX_COMMON) $(OBJ_COMMON)
-LIB_COMMON=-Wl,-rpath,../lib:$(PREFIX_LIB) -ldl $(GZIP_LIB)
+LIB_COMMON=-pthread -Wl,-rpath,../lib:$(PREFIX_LIB) -ldl $(GZIP_LIB)
 
 # PYTHIA.
 OBJECTS=$(patsubst $(LOCAL_SRC)/%.cc,$(LOCAL_TMP)/%.o,\
@@ -51,18 +51,45 @@ ifeq ($(LHAPDF6_USE),true)
   TARGETS+=$(LOCAL_LIB)/libpythia8lhapdf6.so
 endif
 
-# POWHEG (needs directory that contains just POWHEG binaries and scripts).
-ifeq ($(POWHEG_USE),true)
-  TARGETS+=$(LOCAL_LIB)/libpythia8powhegHooks.so
-  ifneq ($(POWHEG_BIN),.)
-    TARGETS+=$(patsubst $(POWHEG_BIN)lib%.so,\
-	     $(LOCAL_LIB)/libpythia8powheg%.so,$(wildcard $(POWHEG_BIN)*))
-  endif
-endif
-
 # MG5 matrix element plugins.
 ifeq ($(MG5MES_USE),true)
   TARGETS+=mg5mes
+endif
+
+# POWHEG (needs directory that contains just POWHEG libraries).
+ifeq ($(POWHEG_USE),true)
+  TARGETS+=$(LOCAL_LIB)/libpythia8powhegHooks.so
+  POWHEG_DIR=$(subst -L,,$(filter -L%,$(POWHEG_LIB)))/
+  ifneq ($(POWHEG_DIR),.)
+    TARGETS+=$(patsubst $(POWHEG_DIR)lib%.so,\
+	     $(LOCAL_LIB)/libpythia8powheg%.so,$(wildcard $(POWHEG_DIR)*))
+  endif
+endif
+
+# Define RIVET options and fix C++ version, rpath, missing HDF5.
+ifeq ($(RIVET_USE),true)
+  COMMA=,
+  RIVET_VERSION=$(shell $(RIVET_BIN)$(RIVET_CONFIG) --version)
+  RIVET_LPATH=$(filter -L%,$(shell $(RIVET_BIN)$(RIVET_CONFIG) --ldflags))
+  RIVET_FLAGS=$(subst -L,-Wl$(COMMA)-rpath$(COMMA),$(RIVET_LPATH))
+  RIVET_FLAGS+= $(shell $(RIVET_BIN)$(RIVET_CONFIG) --cppflags --libs)
+  RIVET_CSTD=c++14
+  ifeq ("4.0.0","$(word 1, $(sort 4.0.0 $(RIVET_VERSION)))")
+    RIVET_CSTD=c++17
+    RIVET_LDIR=$(shell $(RIVET_BIN)$(RIVET_CONFIG) --libdir)
+    RIVET_HDF5=$(shell nm $(RIVET_LDIR)/libRivet$(LIB_SUFFIX) | grep H5open)
+    ifneq ($(strip $(RIVET_HDF5)),)
+      RIVET_FLAGS+= -lhdf5
+    endif
+    TARGETS+=$(LOCAL_LIB)/libpythia8rivet.so
+  endif
+  RIVET_OPTS=$(CXX_COMMON:c++11=$(RIVET_CSTD)) $(RIVET_FLAGS) $(CXX_DTAGS)
+endif
+
+# Define HepMC3 options.
+ifeq ($(HEPMC3_USE),true)
+  HEPMC3_OPTS=$(CXX_COMMON) $(HEPMC3_INCLUDE) $(HEPMC3_LIB) -DHEPMC3
+  TARGETS+=$(LOCAL_LIB)/libpythia8hepmc3.so
 endif
 
 # Python.
@@ -105,7 +132,7 @@ $(LOCAL_LIB)/libpythia8.a: $(OBJECTS)
 	ar cr $@ $^
 $(LOCAL_LIB)/libpythia8$(LIB_SUFFIX): $(OBJECTS)
 	$(CXX) $^ -o $@ $(CXX_COMMON) $(CXX_SHARED) $(CXX_SONAME)$(notdir $@)\
-	  $(LIB_COMMON)
+	  $(LIB_COMMON) $(CXX_DTAGS)
 
 # LHAPDF (turn off all warnings for readability).
 $(LOCAL_TMP)/LHAPDF%Plugin.o: $(LOCAL_INCLUDE)/Pythia8Plugins/LHAPDF%.h
@@ -120,15 +147,25 @@ $(LOCAL_TMP)/LHAPowheg.o: $(LOCAL_INCLUDE)/Pythia8Plugins/LHAPowheg.h
 	$(CXX) -x c++ $< -o $@ -c -MD -w $(CXX_COMMON)
 $(LOCAL_TMP)/PowhegHooks.o: $(LOCAL_INCLUDE)/Pythia8Plugins/PowhegHooks.h
 	$(CXX) -x c++ $< -o $@ -c -MD -w $(CXX_COMMON)
-$(LOCAL_LIB)/libpythia8powheg%.so: $(POWHEG_BIN)lib%.so\
+$(LOCAL_LIB)/libpythia8powheg%.so: $(POWHEG_DIR)lib%.so\
 	$(LOCAL_TMP)/LHAPowheg.o $(LOCAL_LIB)/libpythia8$(LIB_SUFFIX)
 	$(CXX) $(LOCAL_TMP)/LHAPowheg.o -o $@ $(CXX_COMMON) $(CXX_SHARED)\
 	 $(CXX_SONAME)$(notdir $@) -Llib -lpythia8\
-	 -Wl,-rpath,../lib:$(POWHEG_BIN) -L$(POWHEG_BIN) -l$*
+	 -Wl,-rpath,../lib:$(POWHEG_DIR) -L$(POWHEG_DIR) -l$*
 $(LOCAL_LIB)/libpythia8powhegHooks.so: $(LOCAL_TMP)/PowhegHooks.o\
 	$(LOCAL_LIB)/libpythia8$(LIB_SUFFIX)
 	$(CXX) $< -o $@ $(CXX_COMMON) $(CXX_SHARED) $(CXX_SONAME)$(notdir $@)\
 	 -Llib -lpythia8
+
+# RIVET.
+$(LOCAL_LIB)/libpythia8rivet.so: $(LOCAL_INCLUDE)/Pythia8Plugins/RivetHooks.h
+	$(CXX) -x c++ $< -o $@ -w $(RIVET_OPTS) $(CXX_SHARED)\
+	 $(CXX_SONAME)$(notdir $@) -Wl,-undefined,dynamic_lookup
+
+# HepMC3.
+$(LOCAL_LIB)/libpythia8hepmc3.so: $(LOCAL_INCLUDE)/Pythia8Plugins/HepMC3Hooks.h
+	$(CXX) -x c++ $< -o $@ -w $(HEPMC3_OPTS) $(CXX_SHARED)\
+	 $(CXX_SONAME)$(notdir $@) -Wl,-undefined,dynamic_lookup
 
 # MG5 matrix element plugins.
 mg5mes:
@@ -152,10 +189,7 @@ clean:
 	cd plugins/python && $(MAKE) clean
 	cd plugins/mg5mes && $(MAKE) clean
 	rm -rf $(LOCAL_TMP) $(LOCAL_LIB)
-	rm -f $(LOCAL_EXAMPLE)/*Dct.*
-	rm -f $(LOCAL_EXAMPLE)/*[0-9][0-9]
-	rm -f $(LOCAL_EXAMPLE)/weakbosons.lhe
-	rm -f $(LOCAL_EXAMPLE)/hist.root
+	cd $(LOCAL_EXAMPLE) && $(MAKE) clean
 
 # Clean all temporary and generated files.
 distclean: clean
