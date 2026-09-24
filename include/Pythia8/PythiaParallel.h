@@ -1,5 +1,5 @@
 // PythiaParallel.h is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Marius Utheim, Torbjorn Sjostrand.
+// Copyright (C) 2026 Marius Utheim, Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -37,6 +37,12 @@ public:
   bool readFile(istream& is, int subrun) {
     return readFile(is, true, subrun);}
 
+  // Read in settings values: shorthand, not new functionality.
+  bool   flag(string key) {return settings.flag(key);}
+  int    mode(string key) {return settings.mode(key);}
+  double parm(string key) {return settings.parm(key);}
+  string word(string key) {return settings.word(key);}
+
   // Initialize all Pythia objects.
   bool init();
   bool init(function<bool(Pythia*)> additionalSetup);
@@ -73,10 +79,10 @@ public:
   // The particle database that will be used to initialize Pythia instances.
   ParticleData& particleData;
 
-private:
-
   // Object used for logging.
   Logger& logger;
+
+private:
 
   // Flag if initialized.
   bool isInit = false;

@@ -1,5 +1,5 @@
 // PhaseSpace.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -99,6 +99,7 @@ void PhaseSpace::init(bool isFirst, SigmaProcessPtr sigmaProcessPtrIn) {
   mB              = beamBPtr->m();
   eCM             = infoPtr->eCM();
   s               = eCM * eCM;
+  nBeamOffset     = 0;
 
   // Flag if lepton beams, and if non-resolved ones.
   hasLeptonBeamA      = beamAPtr->isLepton();
@@ -202,11 +203,15 @@ void PhaseSpace::init(bool isFirst, SigmaProcessPtr sigmaProcessPtrIn) {
   if (canBias2Sel) pTHatGlobalMin = max( pTHatGlobalMin, pTHatMinDiverge);
 
   // Parameters for special top threshold handling in gg/qqbar -> ttbar.
-  int codeTmp       = sigmaProcessPtr->code();
-  doTopPair         = (codeTmp == 601 || codeTmp == 602);
-  topThresholdModel = (doTopPair) ? mode("TopThreshold:model") : 0;
-  topThresholdWidth = (topThresholdModel == 4)
-    ? parm("TopThreshold:width") : 0.;
+  int codeTmp         = sigmaProcessPtr->code();
+  doTopPair           = (codeTmp == 601 || codeTmp == 602 || codeTmp == 604);
+  topThresholdModel   = (doTopPair) ? mode("TopThreshold:model") : 0;
+  topThresholdRegion  = (topThresholdModel > 1)
+    ? parm("TopThreshold:thrRegion") : 0.;
+  topThresholdShrink  = (topThresholdModel != 3) ? 1. : max( 0.,
+    1. - parm("TopThreshold:tWidthGreen") / particleDataPtr->mWidth(6) );
+  topThresholdMassSel = mode("TopThreshold:massSel");
+  mTopMin             = particleDataPtr->mMin(6);
 
   // Default event-specific kinematics properties.
   x1H             = 1.;
@@ -240,13 +245,16 @@ void PhaseSpace::init(bool isFirst, SigmaProcessPtr sigmaProcessPtrIn) {
 
 //--------------------------------------------------------------------------
 
-// Allow for nonisotropic decays when ME's available.
+// Allow for nonisotropic decays when ME's available, possible beam
+// offset for identifying resonances in case of beam-inside-beam
+// cases.
 
 void PhaseSpace::decayKinematics( Event& process) {
 
-  // Identify sets of sister partons.
-  int iResEnd = 4;
-  for (int iResBeg = 5; iResBeg < process.size(); ++iResBeg) {
+  // Identify sets of sister partons, account for possible offset in effective
+  // beam locations.
+  int iResEnd = 4 + nBeamOffset;
+  for (int iResBeg = 5 + nBeamOffset; iResBeg < process.size(); ++iResBeg) {
     if (iResBeg <= iResEnd) continue;
     iResEnd = iResBeg;
     while ( iResEnd < process.size() - 1
@@ -302,11 +310,11 @@ void PhaseSpace::decayKinematics( Event& process) {
 
 void PhaseSpace::decayKinematicsStep( Event& process, int iRes) {
 
-   // Multiplicity and mother mass and four-momentum.
-   int    i1   = process[iRes].daughter1();
-   int    mult = process[iRes].daughter2() + 1 - i1;
-   double m0   = process[iRes].m();
-   Vec4   pRes = process[iRes].p();
+  // Multiplicity and mother mass and four-momentum.
+  int    i1   = process[iRes].daughter1();
+  int    mult = process[iRes].daughter2() + 1 - i1;
+  double m0   = process[iRes].m();
+  Vec4   pRes = process[iRes].p();
 
   // Description of two-body decays as simple special case.
   if (mult == 2) {
@@ -1033,7 +1041,7 @@ bool PhaseSpace::trialKin123(bool is2, bool is3, bool inEvent) {
   selectTau( iTau, rndmPtr->flat(), is2);
 
   // Special case for ttbar production below threshold.
-  if (topThresholdModel == 4 && sqrt(sH) - m3 - m4 < MASSMARGIN) return false;
+  if (topThresholdModel > 1 && sqrt(sH) - m3 - m4 < MASSMARGIN) return false;
 
   // Choose y according to h2(y), where
   // h2(y) = (c0/I0) * 1/cosh(y)
@@ -1169,7 +1177,7 @@ bool PhaseSpace::limitTau(bool is2, bool is3) {
     double mT4Min = sqrt(s4 + pT2HatMin);
     double mT5Min = (is3) ? sqrt(s5 + pT2HatMin) : 0.;
     tauMin = max( tauMin, pow2(mT3Min + mT4Min + mT5Min
-      - 2. * topThresholdWidth) / s);
+      - 2. * topThresholdRegion) / s);
   }
 
   // Check that there is an open range.
@@ -1261,6 +1269,8 @@ void PhaseSpace::selectTau(int iTau, double tauVal, bool is2) {
     wtTau = 1.;
     sH = s;
     mHat = sqrt(sH);
+    // Special top threshold energy setup for pointlike e+e-.
+    if (doTopPair) selectTopThreshold();
     if (is2) {
       p2Abs = 0.25 * (pow2(sH - s3 - s4) - 4. * s3 * s4) / sH;
       pAbs = sqrtpos( p2Abs );
@@ -1336,27 +1346,12 @@ void PhaseSpace::selectTau(int iTau, double tauVal, bool is2) {
       * tau / max( LEPTONTAUMIN, 1. - tau);
   wtTau = 1. / invWtTau;
 
-  // Calculate sHat. Save "original" quantities in case of new top masses.
+  // Calculate sHat.
   sH = tau * s;
   mHat = sqrt(sH);
-  if (doTopPair) {
-    eThreshold  = mHat - m3 - m4;
-    m3Threshold = m3;
-    m4Threshold = m4;
-    infoPtr->toponiumE  = eThreshold;
-    infoPtr->toponiumm3 = m3Threshold;
-    infoPtr->toponiumm4 = m4Threshold;
 
-    // For top pair production below threshold: pick new masses above it.
-    if (eThreshold <= 0.) {
-      do {
-        m3 = particleDataPtr->mSelInRange(6, 0., m3Threshold);
-        m4 = particleDataPtr->mSelInRange(6, 0., m4Threshold);
-      } while (m3 + m4 + MASSMARGIN > mHat);
-      s3 = m3 * m3;
-      s4 = m4 * m4;
-    }
-  }
+  // Special top threshold energy setup for generic case.
+  if (doTopPair) selectTopThreshold();
 
   // Calculate absolute momentum of outgoing partons.
   if (is2) {
@@ -1775,6 +1770,36 @@ void PhaseSpace::solveSys( int n, int bin[8], double vec[8],
 
 //--------------------------------------------------------------------------
 
+// Save properties for event reweighting and recalculate top masses.
+
+void PhaseSpace::selectTopThreshold() {
+
+  // Save already calculated quantities.
+  eThreshold  = mHat - m3 - m4;
+  m3Threshold = m3;
+  m4Threshold = m4;
+  infoPtr->toponiumE  = eThreshold;
+  infoPtr->toponiumm3 = m3Threshold;
+  infoPtr->toponiumm4 = m4Threshold;
+
+  // For top pair production below threshold: pick new masses above it.
+  if (eThreshold <= 0.) {
+    double m3TopMax = (topThresholdMassSel == 0)
+      ? min( m3Threshold, mHat - mTopMin) : mHat - mTopMin;
+    double m4TopMax = (topThresholdMassSel == 0)
+      ? min( m4Threshold, mHat - mTopMin) : mHat - mTopMin;
+    do {
+      m3 = particleDataPtr->mSelInRange(6, mTopMin, m3TopMax);
+      m4 = particleDataPtr->mSelInRange(6, mTopMin, m4TopMax);
+    } while (m3 + m4 + MASSMARGIN > mHat);
+    s3 = m3 * m3;
+    s4 = m4 * m4;
+  }
+
+}
+
+//--------------------------------------------------------------------------
+
 // Setup mass selection for one resonance at a time - part 1.
 
 void PhaseSpace::setupMass1(int iM) {
@@ -1793,6 +1818,7 @@ void PhaseSpace::setupMass1(int iM) {
   } else {
     mPeak[iM]  = particleDataPtr->m0(idMass[iM]);
     mWidth[iM] = particleDataPtr->mWidth(idMass[iM]);
+    if (topThresholdModel == 3) mWidth[iM] *= topThresholdShrink;
     mMin[iM]   = max( MRESMINABS, particleDataPtr->mMin(idMass[iM]) );
     mMax[iM]   = particleDataPtr->mMax(idMass[iM]);
     // gmZmode == 1 means pure photon propagator; set at lower mass limit.
@@ -2112,7 +2138,8 @@ bool PhaseSpace2to2tauyz::trialMasses() {
   trialMass(4);
 
   // If outside phase space then reject event.
-  if (m3 + m4 + MASSMARGIN > mHatMax) return false;
+  // (Except for below-threshold "toponium" simulation.)
+  if (topThresholdModel < 2 && m3 + m4 + MASSMARGIN > mHatMax) return false;
 
   // Correct selected mass-spectrum to running-width Breit-Wigner.
   if (useBW[3]) wtBW *= weightMass(3);

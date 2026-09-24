@@ -1,5 +1,5 @@
 // BeamSetup.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -544,9 +544,9 @@ bool BeamSetup::initBeams(bool doNonPertIn, StringFlav* flavSelPtr) {
     }
 
     // Set up the two beams and the common remnant system.
-    beamA.init( idA, pzAcm, eA, mA, pdfAPtr, pdfHardAPtr,
+    beamA.init( idA, pzAcm, eAcm, mA, pdfAPtr, pdfHardAPtr,
       isUnresolvedA, flavSelPtr);
-    beamB.init( idB, pzBcm, eB, mB, pdfBPtr, pdfHardBPtr,
+    beamB.init( idB, pzBcm, eBcm, mB, pdfBPtr, pdfHardBPtr,
       isUnresolvedB, flavSelPtr);
 
     // Special setup to allow switching between beam PDFs.
@@ -675,15 +675,15 @@ void BeamSetup::nextKinematics() {
   pzAcm = 0.5 * sqrtpos( (eCM + mA + mB) * (eCM - mA - mB)
         * (eCM - mA + mB) * (eCM + mA - mB) ) / eCM;
   pzBcm = -pzAcm;
-  eA    = sqrt(mA*mA + pzAcm*pzAcm);
-  eB    = sqrt(mB*mB + pzBcm*pzBcm);
+  eAcm  = sqrt(mA*mA + pzAcm*pzAcm);
+  eBcm  = sqrt(mB*mB + pzBcm*pzBcm);
 
   // Set relevant info for other classes to use.
-  infoPtr->setBeamA( idA, pzAcm, eA, mA);
-  infoPtr->setBeamB( idB, pzBcm, eB, mB);
+  infoPtr->setBeamA( idA, pzAcm, eAcm, mA);
+  infoPtr->setBeamB( idB, pzBcm, eBcm, mB);
   infoPtr->setECM( eCM);
-  beamA.newPzE( pzAcm, eA);
-  beamB.newPzE( pzBcm, eB);
+  beamA.newPzE( pzAcm, eAcm);
+  beamB.newPzE( pzBcm, eBcm);
 
   // Set boost/rotation matrices from/to CM frame.
   if (frameType != 1) {
@@ -945,18 +945,18 @@ bool BeamSetup::initKinematics() {
   pzAcm    = 0.5 * sqrtpos( (eCM + mA + mB) * (eCM - mA - mB)
            * (eCM - mA + mB) * (eCM + mA - mB) ) / eCM;
   pzBcm    = -pzAcm;
-  eA       = sqrt(mA*mA + pzAcm*pzAcm);
-  eB       = sqrt(mB*mB + pzBcm*pzBcm);
+  eAcm     = sqrt(mA*mA + pzAcm*pzAcm);
+  eBcm     = sqrt(mB*mB + pzBcm*pzBcm);
 
   // If in CM frame then store beam four-vectors (else already done above).
   if (boostType != 2 && boostType != 3) {
-    pAinit = Vec4( 0., 0., pzAcm, eA);
-    pBinit = Vec4( 0., 0., pzBcm, eB);
+    pAinit = Vec4( 0., 0., pzAcm, eAcm);
+    pBinit = Vec4( 0., 0., pzBcm, eBcm);
   }
 
   // Store main info for access in process generation.
-  infoPtr->setBeamA( idA, pzAcm, eA, mA);
-  infoPtr->setBeamB( idB, pzBcm, eB, mB);
+  infoPtr->setBeamA( idA, pzAcm, eAcm, mA);
+  infoPtr->setBeamB( idB, pzBcm, eBcm, mB);
   infoPtr->setECM( eCM);
 
   // Must allow for generic boost+rotation when beam momentum spread.
@@ -1178,7 +1178,7 @@ PDFPtr BeamSetup::getPDFPtr(int idIn, int sequence, string beam,
     // Use preferred PDF source.
     if (settingsPtr != nullptr) {
       int pMode = settingsPtr->mode("Tune:preferLHAPDF");
-      if (pMode != 0 && pSet > 0 && pSet < 25) {
+      if (pMode != 0 && pSet > 0 && pSet <= 25) {
 
         // Map of internal to LHAPDF5 and LHAPDF6.
         vector<pair<string, string> > pMap {
@@ -1207,7 +1207,8 @@ PDFPtr BeamSetup::getPDFPtr(int idIn, int sequence, string beam,
           make_pair("", "NNPDF31sx_nlonllx_as_0118_LHCb_luxqed"),
           make_pair("", "NNPDF31sx_nnlonllx_as_0118_LHCb_luxqed"),
           make_pair("", ""),
-          make_pair("", "")
+          make_pair("", ""),
+          make_pair("", "PDF4LHC21_mc")
         };
         if      (pMode == 1) pWord = "LHAPDF5:" + pMap[pSet - 1].first;
         else if (pMode == 2) pWord = "LHAPDF6:" + pMap[pSet - 1].second;
@@ -1234,7 +1235,7 @@ PDFPtr BeamSetup::getPDFPtr(int idIn, int sequence, string beam,
     else if (pSet <= 12)
       tempPDFPtr = make_shared<CTEQ6pdf>(idIn, pSet - 6, 1.,
         pdfdataPath, loggerPtr);
-    else if (pSet <= 24)
+    else if (pSet <= 25)
       tempPDFPtr = make_shared<LHAGrid1>
         (idIn, pWord, pdfdataPath, loggerPtr);
     else tempPDFPtr = 0;
@@ -1404,10 +1405,13 @@ PDFPtr BeamSetup::getPDFPtr(int idIn, int sequence, string beam,
     if (nPDFSet == 0)
       tempPDFPtr = make_shared<Isospin>(idIn, tempProtonPDFPtr);
     else if (nPDFSet == 1 || nPDFSet == 2)
-      tempPDFPtr = make_shared<EPS09>(idIn, nPDFSet, 1, pdfdataPath,
+      tempPDFPtr = make_shared<EPS09>(idIn, nPDFSet, 0, pdfdataPath,
         tempProtonPDFPtr, loggerPtr);
     else if (nPDFSet == 3)
-      tempPDFPtr = make_shared<EPPS16>(idIn, 1, pdfdataPath,
+      tempPDFPtr = make_shared<EPPS16>(idIn, 0, pdfdataPath,
+        tempProtonPDFPtr, loggerPtr);
+    else if (nPDFSet == 4)
+      tempPDFPtr = make_shared<EPPS21>(idIn, 0, pdfdataPath,
         tempProtonPDFPtr, loggerPtr);
     else tempPDFPtr = 0;
   }

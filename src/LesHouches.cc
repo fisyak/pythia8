@@ -1,5 +1,5 @@
 // LesHouches.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -941,8 +941,14 @@ bool LHAupLHEF::setInitLHEF( istream & isIn, bool readHead ) {
 
 bool LHAupLHEF::setNewEventLHEF() {
 
-  // Done if the reader finished preemptively.
-  if(!reader.readEvent()) return false;
+  // Done if the reader finished preemptively. Distinguish a file that has
+  // simply ended from one that is malformed or truncated; only the latter
+  // is an error, and reading stops either way.
+  if (!reader.readEvent()) {
+    if (reader.readError) loggerPtr->ERROR_MSG("corrupt LHEF event",
+      "stopped reading events");
+    return false;
+  }
 
   // Extract process info and store it.
   nupSave     = reader.hepeup.NUP;

@@ -1,5 +1,5 @@
 // main225.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -26,11 +26,9 @@ int main() {
   Pythia pythiaS;
   pythiaS.readFile("main225.cmnd", 1);
   if (!pythiaS.init()) return 1;
-  int nEvent = pythiaS.mode("Main:numberOfEvents");
-  int iEvent = 0;
-  while (iEvent < nEvent)
-    if (pythiaS.next()) ++iEvent;
+  pythiaS.run([&](Pythia*){});
   pythiaS.stat();
+
   return 0;
 
 }

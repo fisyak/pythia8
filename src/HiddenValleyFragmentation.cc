@@ -1,5 +1,5 @@
 // HiddenValleyFragmentation.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -225,9 +225,9 @@ bool HVStringZ::init() {
 double HVStringZ::zFrag( int idOld, int , double mT2) {
 
   // Shape parameters of Lund symmetric fragmentation function.
-  double bShape = bLund * mT2;
+  bShape = bLund * mT2;
   double rFactNow = rFactBowler[ abs(idOld) % 10 ];
-  double cShape = 1. + rFactNow * bLund * pow2(particleDataPtr->m0( idOld));
+  cShape = 1. + rFactNow * bLund * pow2(particleDataPtr->m0( idOld));
   return zLund( aLund, bShape, cShape);
 
 }
@@ -341,7 +341,8 @@ bool HiddenValleyFragmentation::fragment(int iSub, ColConfig&,
   // Minimal meson masses given endpoints.
   double mMinEnd1 = mhvMeson;
   double mMinEnd2 = mhvMeson;
-  if (separateFlav) {
+  isLoop = (hvEvent[hvColConfig[0].iParton.front()].idAbs() == 21);
+  if (separateFlav && !isLoop) {
     idEnd1 = hvEvent[hvColConfig[0].iParton.front()].idAbs() - 4900100;
     idEnd2 = hvEvent[hvColConfig[0].iParton.back()].idAbs() - 4900100;
     mMinEnd1 = mhvMin[idEnd1];
@@ -459,7 +460,7 @@ bool HiddenValleyFragmentation::collapseToMeson() {
   // Lightest mass, given flavour content.
   int idhvLight   = 4900111;
   double mhvLight = mhvMeson;
-  if (separateFlav) {
+  if (separateFlav && !isLoop) {
     idhvLight = 4900001 + 100 * max(idEnd1, idEnd2) + 10 * min(idEnd1, idEnd2);
     mhvLight  = particleDataPtr->m0(idhvLight);
   }

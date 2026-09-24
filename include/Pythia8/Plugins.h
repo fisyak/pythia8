@@ -1,5 +1,5 @@
 // Plugins.h is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Philip Ilten, Manuel Szewc, and Torbjorn Sjostrand.
+// Copyright (C) 2026 Philip Ilten, Manuel Szewc, and Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -158,6 +158,18 @@ template <typename T> shared_ptr<T> make_plugin(
 
 //==========================================================================
 
+// Declare empty plugin macros if not needed.
+
+#ifdef NOPLUGIN
+#define PYTHIA8_PLUGIN_CLASS(BASE, CLASS, PYTHIA, SETTINGS, LOGGER)
+#define PYTHIA8_PLUGIN_SETTINGS(METHOD)
+#define PYTHIA8_PLUGIN_XML(INDEX)
+#define PYTHIA8_PLUGIN_PARALLEL(COMPATIBLE)
+#define PYTHIA8_PLUGIN_VERSIONS(...)
+#else
+
+//==========================================================================
+
 // Macro to declare a plugin class.
 
 #define PYTHIA8_PLUGIN_CLASS(BASE, CLASS, PYTHIA, SETTINGS, LOGGER) \
@@ -205,6 +217,8 @@ template <typename T> shared_ptr<T> make_plugin(
       return ver == PYTHIA_VERSION_INTEGER;}}
 
 //==========================================================================
+
+#endif // end NOPLUGIN
 
 } // end namespace Pythia8
 

@@ -1,5 +1,5 @@
 // main341.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -19,6 +19,7 @@ int main() {
   double eElectron = 27.5;
   double Q2min     = 25.;
   int    nEvent    = 10000;
+  bool   doNLO     = false;
 
   // Generator. Shorthand for event.
   Pythia pythia;
@@ -40,6 +41,9 @@ int main() {
   //pythia.readString("WeakBosonExchange:ff2ff(t:W) = on");
   // Phase-space cut: minimal Q2 of process.
   pythia.settings.parm("PhaseSpace:Q2Min", Q2min);
+  // Set the factorization and renormalization scales to Q2.
+  pythia.readString("SigmaProcess:factorScale2 = 6");
+  pythia.readString("SigmaProcess:renormScale2 = 6");
 
   // Set dipole recoil on. Necessary for DIS + shower.
   pythia.readString("SpaceShower:dipoleRecoil = on");
@@ -51,6 +55,20 @@ int main() {
   // QED radiation off lepton not handled yet by the new procedure.
   pythia.readString("PDF:lepton = off");
   pythia.readString("TimeShower:QEDshowerByL = off");
+
+  // Reweight event with NLO matching, currently only for NC DIS.
+  if (doNLO) {
+    pythia.readString("SigmaProcess:reweightNLO = on");
+    pythia.readString("PDF:pSet = 19");
+    pythia.readString("SigmaProcess:alphaSvalue = 0.118");
+    pythia.readString("SigmaProcess:alphaSorder = 2");
+    pythia.readString("TimeShower:alphaSvalue = 0.118");
+    pythia.readString("TimeShower:alphaSorder = 2");
+    pythia.readString("TimeShower:alphaSuseCMW = on");
+    pythia.readString("SpaceShower:alphaSvalue = 0.118");
+    pythia.readString("SpaceShower:alphaSorder = 2");
+    pythia.readString("SpaceShower:alphaSuseCMW = on");
+  }
 
   // If Pythia fails to initialize, exit with error.
   if (!pythia.init()) return 1;

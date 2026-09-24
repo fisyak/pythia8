@@ -1,9 +1,9 @@
 // main136.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
-// Authors: Christian T. Preuss <christian.preuss@uni-goettingen.de>
+// Authors: Christian T. Preuss <preuss@physik.rwth-aachen.de>
 
 // Keywords: HDF5 file; LHEH5; hepmc
 
@@ -28,7 +28,7 @@ using namespace Pythia8;
 
 //==========================================================================
 
-// Example main programm to illustrate simple HDF5 usage.
+// Example main program to illustrate simple HDF5 usage.
 
 int main(int argc, char* argv[]) {
 

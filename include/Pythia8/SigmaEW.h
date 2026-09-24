@@ -1,5 +1,5 @@
 // SigmaEW.h is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -201,6 +201,12 @@ public:
 
   // Evaluate sigmaHat(sHat).
   virtual double sigmaHat();
+
+  // This process has an inclusive NLO correction.
+  virtual bool   hasNLO() const {return true;}
+  virtual double weightNLO();
+  double factRVDIS( int idLepton, double x, double y, double Q2,
+    BeamParticle* beamHadPtr);
 
   // Select flavour, colour and anticolour.
   virtual void setIdColAcol();
@@ -526,9 +532,9 @@ public:
 
   // Constructor.
   Sigma2ffbar2FFbarsgmZ(int idIn, int codeIn) : idNew(idIn),
-    codeSave(codeIn), gmZmode(), isPhysical(), ef(), vf(), af(), mRes(),
-    GammaRes(), m2Res(), GamMRat(), thetaWRat(), mr(), betaf(), cosThe(),
-    gamProp(), intProp(), resProp(), openFracPair() {}
+    codeSave(codeIn), gmZmode(), topModel(), isPhysical(), ef(), vf(), af(),
+    mRes(), GammaRes(), m2Res(), GamMRat(), thetaWRat(), mr(), betaf(),
+    cosThe(), gamProp(), intProp(), resProp(), openFracPair() {}
 
   // Initialize process.
   virtual void initProc();
@@ -556,12 +562,18 @@ public:
 
 private:
 
+  // Constants: override SigmaProcess::MASSMARGIN for threshold studies.
+  static const double MASSMARGIN;
+
   // Values stored for process type. Z parameters for propagator.
-  int    idNew, codeSave, gmZmode;
+  int    idNew, codeSave, gmZmode, topModel;
   string nameSave;
   bool   isPhysical;
   double ef, vf, af, mRes, GammaRes, m2Res, GamMRat, thetaWRat,
          mr, betaf, cosThe, gamProp, intProp, resProp, openFracPair;
+
+  // Class for top threshold corrections.
+  TopThreshold topThreshold;
 
 };
 

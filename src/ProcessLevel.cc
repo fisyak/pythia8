@@ -1,5 +1,5 @@
 // ProcessLevel.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -1235,7 +1235,7 @@ void ProcessLevel::findJunctions( Event& junEvent) {
     // final state. Also ignore shower branchings.
     if (abs(junEvent[i].status()) <= 21 || junEvent[i].colType() == 0
       || (junEvent[i].status() >= 40 && junEvent[i].status() <= 59) ) continue;
-    vector<int> motherList   = junEvent[i].motherList();
+    vector<int> motherList = junEvent[i].motherList();
     int iMot1 = motherList[0];
     vector<int> sisterList = junEvent[iMot1].daughterList();
 

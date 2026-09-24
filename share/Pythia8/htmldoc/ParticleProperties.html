@@ -231,14 +231,14 @@ In detail, the list of used or foreseen status codes is:
   <li>158 : annihilation of incoming quark-antiquark pairs</li> 
   <li>159 : formation of a resonance particle</li> 
   </ul> 
-<li>181 - 189 : reserved for the tracking of a cascade through a medium. 
-  Is not (yet) used in the core code, but only in the <code>main483</code> 
-  example 
+<li>181 - 189 : reserved for the tracking of a cascade through a 
+medium and is not (yet) used in the core code, but only in the 
+<code>PythiaCascade</code> class 
   <ul> 
   <li>181 : a nucleon hit in the medium, specifically the first 
   (by order in the event record) nucleon hit in the current nucleus</li> 
-  <li>182: a further nucleon hit in a nucleus, subsequent to the first 
-  one above.</li> 
+  <li>182 : a further nucleon hit in a nucleus, subsequent to the first 
+  one above</li> 
   </ul> 
   Thus the number of -181 codes represents the number of medium nuclei 
   hit, while the sum of -181 and -182 codes gives the total number of 
@@ -1176,4 +1176,4 @@ particle species.
 </body>
 </html>
  
-<!-- Copyright (C) 2025 Torbjorn Sjostrand --> 
+<!-- Copyright (C) 2026 Torbjorn Sjostrand --> 

@@ -1,5 +1,5 @@
 // SigmaEW.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -370,6 +370,205 @@ double Sigma2ff2fftgmZ::sigmaHat() {
 
   // Answer.
   return sigma;
+
+}
+
+//--------------------------------------------------------------------------
+
+// Real + virtual parts of NLO structure functions.
+
+double Sigma2ff2fftgmZ::factRVDIS(int idLepton, double x, double y,
+  double Q2, BeamParticle* beamHadPtr) {
+
+  // Initialize PDFs and couplings and relevant combinations of these two.
+  const double CF = 4./3.;
+  const double TR = 0.5;
+  double eta      = thetaWRat * tH / (tH - mZS);
+  double xq02gm   = 0;
+  double xq02gmZ  = 0;
+  double xq02Z    = 0;
+  double xq03gm   = 0;
+  double xq03gmZ  = 0;
+  double xq03Z    = 0;
+  vector<double> couplingsF2gm(2*nQuarkIn+1);
+  vector<double> couplingsF2gmZ(2*nQuarkIn+1);
+  vector<double> couplingsF2Z(2*nQuarkIn+1);
+  vector<double> couplingsF3gmZ(2*nQuarkIn+1);
+  vector<double> couplingsF3Z(2*nQuarkIn+1);
+
+  // Fetch PDF(i, x, Q2) and calculate couplings for all channels.
+  for (int i=-nQuarkIn; i<nQuarkIn+1; ++i) {
+
+    // Skip over gluon, only incoming quarks.
+    if (i == 0) continue;
+    int id1Abs = abs(i);
+    double  e1 = coupSMPtr->ef(id1Abs);
+    double  v1 = coupSMPtr->vf(id1Abs);
+    double  a1 = coupSMPtr->af(id1Abs);
+    int id2Abs = abs(idLepton);
+    double  e2 = coupSMPtr->ef(id2Abs);
+    double  v2 = coupSMPtr->vf(id2Abs);
+    double  a2 = coupSMPtr->af(id2Abs);
+    double eps = (i * idLepton > 0) ? 1. : -1.;
+    double xpdf = beamHadPtr->xf(i,x,Q2FacSave);
+
+    // Extract couplings for each flavor.
+    couplingsF2gm[i+nQuarkIn]  = pow2(e1 * e2);
+    couplingsF2gmZ[i+nQuarkIn] = eta * 2. * e1 * e2 * v1 * v2;
+    couplingsF2Z[i+nQuarkIn]   = pow2(eta) * (v1*v1 + a1*a1)*(v2*v2 + a2*a2);
+    couplingsF3gmZ[i+nQuarkIn] = eps * eta * (2. * e1 * e2 * a1 * a2);
+    couplingsF3Z[i+nQuarkIn]   = eps * pow2(eta) * 4. * v1 * a1 * v2 * a2;
+
+    // Combine couplins with PDFs for each relevant contribution.
+    if (gmZmode == 0) {
+      xq02gm  += xpdf * couplingsF2gm[i+nQuarkIn];
+      xq02gmZ += xpdf * couplingsF2gmZ[i+nQuarkIn];
+      xq02Z   += xpdf * couplingsF2Z[i+nQuarkIn];
+      xq03gmZ += xpdf * couplingsF3gmZ[i+nQuarkIn];
+      xq03Z   += xpdf * couplingsF3Z[i+nQuarkIn];
+    } else if (gmZmode == 1) {
+      xq02gm  += xpdf * couplingsF2gm[i+nQuarkIn];
+    } else if (gmZmode == 2) {
+      xq02Z   += xpdf * couplingsF2Z[i+nQuarkIn];
+      xq03Z   += xpdf * couplingsF3Z[i+nQuarkIn];
+    }
+  }
+
+  // Sum contributions.
+  double xq02 = xq02gm + xq02gmZ + xq02Z;
+  double xq03 = xq03gm + xq03gmZ + xq03Z;
+
+  // Cross section expression as a function of z.
+  function<double(double)> dSigma = [=](double z) {
+    double  xq2gm = 0.;
+    double xq2gmZ = 0.;
+    double   xq2Z = 0.;
+    double  xg2gm = 0.;
+    double xg2gmZ = 0.;
+    double   xg2Z = 0.;
+    double xq3gmZ = 0.;
+    double   xq3Z = 0.;
+    double xpdfg = beamHadPtr->xf(0, x/z, Q2FacSave);
+
+    // Loop over channels.
+    for (int i = -nQuarkIn; i < nQuarkIn + 1; ++i) {
+      if (i == 0) continue;
+      double xpdfq = beamHadPtr->xf(i, x/z, Q2FacSave);
+
+      // Calculate according to gmZmode.
+      if (gmZmode == 0) {
+        xq2gm  += xpdfq * couplingsF2gm[i+nQuarkIn];
+        xq2gmZ += xpdfq * couplingsF2gmZ[i+nQuarkIn];
+        xq2Z   += xpdfq * couplingsF2Z[i+nQuarkIn];
+        xg2gm  += xpdfg * couplingsF2gm[i+nQuarkIn];
+        xg2gmZ += xpdfg * couplingsF2gmZ[i+nQuarkIn];
+        xg2Z   += xpdfg * couplingsF2Z[i+nQuarkIn];
+        xq3gmZ += xpdfq * couplingsF3gmZ[i+nQuarkIn];
+        xq3Z   += xpdfq * couplingsF3Z[i+nQuarkIn];
+      } else if (gmZmode == 1) {
+        xq2gm  += xpdfq * couplingsF2gm[i+nQuarkIn];
+        xg2gm  += xpdfg * couplingsF2gm[i+nQuarkIn];
+      } else if (gmZmode == 2) {
+        xq2Z   += xpdfq * couplingsF2Z[i+nQuarkIn];
+        xg2Z   += xpdfg * couplingsF2Z[i+nQuarkIn];
+        xq3Z   += xpdfq * couplingsF3Z[i+nQuarkIn];
+      }
+    }
+
+    // Evaluate coefficient with PDF(x/z, Q2) and couplings.
+    double xq2 = xq2gm + xq2gmZ + xq2Z;
+    double xg2 = xg2gm + xg2gmZ + xg2Z;
+    double xq3 = xq3gmZ + xq3Z;
+
+    // Remainder of plus-distribution including factorization scale dependence.
+    double omz = 1.0 - z;
+    double omx = 1.0 - x;
+    double remainder = CF * ( pow2(log(omx)) - 1.5 * log(omx)
+                     - ( pow2(M_PI) / 3. + 4.5 )
+                     + ( 2. * log(omx) + 1.5 ) * log(Q2 / Q2FacSave) ) / omx;
+
+    // Structure function F2 as a function of z.
+    double F2 = CF * ( (xq2 - xq02) * ( 2. * log(omz) / omz - 1.5 / omz )
+      + xq2 * ( - (1. + z) * log(omz)
+        - ( 1.0 + pow2(z) ) / omz * log(z) + 3. + 2. * z )
+      + ( xq2 * ( ( 1. + pow2(z) ) / omz )
+        - xq02 * (2. / omz) ) * log( Q2 / Q2FacSave) )
+      + TR * xg2 * ( ( pow2(z) + pow2(omz) ) * log(omz / z * (Q2 / Q2FacSave))
+        + 8. * z * omz - 1. )
+      + xq02 * remainder;
+
+    // Structure function FL.
+    double FL = CF * xq2 * 2. * z + TR * xg2 * 4. * z * (1. - z);
+
+    // Structure function x*F3.
+    double xF3 = CF * ( ( xq3 - xq03 ) * ( 2. * log(omz) / omz - 1.5 / omz )
+      + xq3 * ( -( 1. + z ) * log(omz)
+        - ( 1. + pow2(z) ) / omz * log(z) + 3. + 2. * z )
+      + ( xq3 * ( (1. + pow2(z))/omz )
+        - xq03 * (2. / omz) ) * log(Q2 / Q2FacSave)
+      - xq3 * ( 1. + z ))
+      + xq03 * remainder;
+
+    // Structure-function dependent part of cross section.
+    return (1. - y + pow2(y) / 2.) * F2 - (pow2(y) / 2.) * FL
+      + ( y - pow2(y) / 2. ) * xF3;
+  };
+
+  // Integrate over z in [x, 1].
+  double sigma = 0.;
+  integrateGauss(sigma, dSigma, x, 1., 1E-3);
+
+  // Cross section part common for all incoming flavours.
+  double sigma0 = 4. * M_PI * pow2(alpEM) / (-tH * sH * y);
+
+  // Return cross section d(sigma)/d(Q2) in mb.
+  return CONVERT2MB * sigma0 * sigma;
+
+}
+
+//--------------------------------------------------------------------------
+
+// Evaluate NLO K-factor with massless kinematics.
+
+double Sigma2ff2fftgmZ::weightNLO() {
+
+  // Implemented only for lepton-hadron case.
+  if (beamAPtr->isHadron() && beamBPtr->isHadron()) return 1.;
+
+  // Massless kinematics.
+  double Q2 = -tH;
+  double y  = Q2 / sH;
+  double x  = sH / infoPtr->s();
+  double aS = coupSMPtr->alphaS(Q2RenSave);
+
+  // Born, virtual and real emission contributions, the first known already.
+  double B  = sigmaSumSave;
+  double RV = 0.;
+
+  // Distinguish between incoming beam lepton and parton.
+  if (beamAPtr->isHadron() && beamBPtr->isLepton()) {
+    if (beamBPtr->id() % 2 == 0) {
+      loggerPtr->WARNING_MSG("inclusive NLO correction requested "
+      "but not available for " + particleDataPtr->name(beamBPtr->id()));
+      return 1.;
+    }
+
+    // Evaluate real + virtual contributions.
+    RV = factRVDIS(beamBPtr->id(), x, y, Q2, beamAPtr);
+
+  } else if (beamBPtr->isHadron() && beamAPtr->isLepton()) {
+      if (beamAPtr->id() % 2 == 0) {
+      loggerPtr->WARNING_MSG("inclusive NLO correction requested "
+      "but not available for " + particleDataPtr->name(beamAPtr->id()));
+      return 1.;
+    }
+
+    // Evaluate real + virtual contributions.
+    RV = factRVDIS(beamAPtr->id(), x, y, Q2, beamBPtr);
+  }
+
+  // Return K-factor.
+  return 1. + (aS/(2.*M_PI) * (RV/B));
 
 }
 
@@ -1263,6 +1462,12 @@ void Sigma2ffbar2ffbarsW::setIdColAcol() {
 // Sigma2ffbar2FFbarsgmZ class.
 // Cross section f fbar -> gamma*/Z0 -> F Fbar.
 
+// The sum of outgoing masses must not be too close to the cm energy.
+// Overrides SigmaProcess::MASSMARGIN = 0.1 for top threshold studies.
+// For even smaller values it would also be necessary to override
+// PhaseSpace::MASSMARGIN = 0.01.
+const double Sigma2ffbar2FFbarsgmZ::MASSMARGIN    = 0.01;
+
 //--------------------------------------------------------------------------
 
 // Initialize process.
@@ -1299,6 +1504,22 @@ void Sigma2ffbar2FFbarsgmZ::initProc() {
 
   // Secondary open width fraction, relevant for top (or heavier).
   openFracPair = particleDataPtr->resOpenFrac(idNew, -idNew);
+
+  // Special top threshold enhancement modelling.
+  topModel             = (idNew == 6) ? mode("TopThreshold:model") : 0;
+  double singletFrac   = 1.;
+  if (topModel > 0) {
+    double mt          = particleDataPtr->m0(6);
+    double gammat      = particleDataPtr->mWidth(6);
+    double gammatGreen = parm("TopThreshold:tWidthGreen");
+    double thrRegion   = parm("TopThreshold:thrRegion");
+    int    alphasOrder = mode("TopThreshold:alphasOrder");
+    double alphasValue = parm("TopThreshold:alphasValue");
+    int    nTerms      = mode("TopThreshold:nTerms");
+    topThreshold.setup( topModel, mt, gammat, gammatGreen, thrRegion,
+      singletFrac, alphasOrder, alphasValue, nTerms, infoPtr);
+    infoPtr->toponiumSingletFrac = singletFrac;
+  }
 
 }
 
@@ -1368,6 +1589,9 @@ double Sigma2ffbar2FFbarsgmZ::sigmaHat() {
 
   // Top: corrections for closed decay channels.
   sigma *= openFracPair;
+
+  // Special top threshold enhancement.
+  if (topModel > 0) sigma *= topThreshold.multiplySigmaBy( sqrt(sH), m3, m4);
 
   // Initial-state colour factor. Answer.
   if (idAbs < 9) sigma /= 3.;

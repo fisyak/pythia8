@@ -1,5 +1,5 @@
 // Pythia.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -24,7 +24,7 @@ namespace Pythia8 {
 
 // The current Pythia (sub)version number, to agree with XML version.
 const double Pythia::VERSIONNUMBERHEAD = PYTHIA_VERSION;
-const double Pythia::VERSIONNUMBERCODE = 8.316;
+const double Pythia::VERSIONNUMBERCODE = 8.318;
 
 //--------------------------------------------------------------------------
 
@@ -212,8 +212,9 @@ void Pythia::initFragPtrs() {
   FragmentationModelPtr mainFragPtr = fragPtr;
   if (settings.mode("Fragmentation:model") == 1)
     mainFragPtr = make_shared<ThermalFragmentation>();
-  fragPtrs = {make_shared<HiddenValleyFragmentation>(), rHadronsPtr,
-              mainFragPtr};
+  fragPtrs.push_back(make_shared<HiddenValleyFragmentation>());
+  fragPtrs.push_back(rHadronsPtr);
+  fragPtrs.push_back(mainFragPtr);
 
 }
 
@@ -290,13 +291,13 @@ void Pythia::initPlugins() {
         logger.ERROR_MSG("insert statements must be of the form insert(i)");
         continue;
       }
-      idx = stoi(key.substr(6, pos));
+      idx = stoi(key.substr(7, pos));
       key = "insert";
     }
 
     // Check if the plugin should be set, added, or inserted.
     if (key == "default") key = "set";
-    if (key != "set" && key != "add") {
+    if (key != "set" && key != "add" && key != "insert") {
       logger.ERROR_MSG("the third argument must be set, add, or insert(i)");
       continue;
     }
@@ -361,7 +362,14 @@ void Pythia::initPlugins() {
     } else if (objType == typeid(HIUserHooks).name()) {setHIHooks(
         make_plugin<HIUserHooks>(libName, className, this, fileName, sub));
     } else if (objType == typeid(FragmentationModel).name()) {
-      setFragmentationPtr(make_plugin<FragmentationModel>(
+      if (key == "add") addFragmentationPtr(
+        make_plugin<FragmentationModel>(
+          libName, className, this, fileName, sub));
+      else if (key == "insert")
+        insertFragmentationPtr(idx, make_plugin<FragmentationModel>(
+          libName, className, this, fileName, sub));
+      else
+        setFragmentationPtr(make_plugin<FragmentationModel>(
           libName, className, this, fileName, sub));
     } else {logger.ERROR_MSG("the class " + demangle(objType) + " cannot be "
         "passed to a Pythia object");
@@ -436,9 +444,11 @@ bool Pythia::init() {
     logger.WARNING_MSG("be aware that successive "
       "calls to init() do not clear previous settings");
   // Only create fragmentation models and plugins the first time.
+  // Plugins must be created first, so default fragmentation models can
+  // be appended to fragPtrs.
   else {
-    initFragPtrs();
     initPlugins();
+    initFragPtrs();
   }
   isInit = false;
 
@@ -524,7 +534,7 @@ bool Pythia::init() {
     }
   }
 
-  // Set/Reset the weights
+  // Set/reset the weights.
   weightContainer.initPtrs(&infoPrivate);
   weightContainer.init(doMerging);
 
@@ -535,7 +545,7 @@ bool Pythia::init() {
     mergingHooksPtr->setLHEInputFile("");
   }
 
-  // Set up Merging object for simple shower model.
+  // Set up merging object for simple shower model.
   if ( doMerging  && showerModel == 1 && !mergingPtr ) {
     mergingPtr = make_shared<Merging>();
     registerPhysicsBase(*mergingPtr);
@@ -572,18 +582,6 @@ bool Pythia::init() {
 
   if ( userHooksPtr ) {
     infoPrivate.userHooksPtr = userHooksPtr;
-
-    // Register the individual user hooks so that when PythiaParallel
-    // calls onStat, it has access to them all. This should be migrated
-    // to UserHooksVector::onStat.
-    shared_ptr<UserHooksVector> uhv =
-      dynamic_pointer_cast<UserHooksVector>(userHooksPtr);
-    if ( uhv ) {
-      for (shared_ptr<UserHooks>& uhp : uhv->hooks)
-        registerPhysicsBase(*uhp);
-    }
-
-    // Register the vector itself.
     registerPhysicsBase(*userHooksPtr);
     pushInfo();
     if (!userHooksPtr->initAfterBeams()) {
@@ -617,6 +615,7 @@ bool Pythia::init() {
   doPartonLevel    = flag("PartonLevel:all");
   doHadronLevel    = flag("HadronLevel:all");
   doLowEnergy      = flag("LowEnergyQCD:all")
+                  || flag("LowEnergyQCD:inelastic")
                   || flag("LowEnergyQCD:nonDiffractive")
                   || flag("LowEnergyQCD:elastic")
                   || flag("LowEnergyQCD:singleDiffractiveXB")
@@ -654,7 +653,7 @@ bool Pythia::init() {
   mTolWarn         = parm("Check:mTolWarn");
 
   // Warn/abort for unallowed process and beam combinations.
-  bool doHardProc  = settings.hasHardProc() || doLHA;
+  doHardProc  = settings.hasHardProc() || doLHA;
   if (doSoftQCD && doHardProc) {
     logger.WARNING_MSG("should not combine softQCD processes with hard ones");
   }
@@ -686,6 +685,24 @@ bool Pythia::init() {
   int startColTag = mode("Event:startColTag");
   process.init("(hard process)", &particleData, startColTag);
   event.init("(complete event)", &particleData, startColTag);
+
+  // Set coloured highlighting for event listing.
+  if (mode("Event:listHighlight") > 0) {
+    vector<int> rgbs;
+    if (mode("Event:listHighlight") == 2)
+      rgbs = {57, 118, 2, 13, 9, 32, 11, 14, 208, 180, 8};
+    else if (mode("Event:listHighlight") == 3)
+      rgbs = {129, 200, 196, 208, 226, 118, 46, 48, 51, 39, 27};
+    else
+      rgbs = settings.mvec("Event:highlights");
+    // Ensure valid RGB colours.
+    for (int& rgb : rgbs) {
+      rgb = abs(rgb);
+      if (rgb > 255) rgb = 0;
+    }
+    process.setHighlights(rgbs);
+    event.setHighlights(rgbs);
+  }
 
   // Final setup stage of particle data, notably resonance widths.
   particleData.initWidths( resonancePtrs);
@@ -928,6 +945,14 @@ bool Pythia::init() {
   isInit = true;
   infoPrivate.addCounter(2);
   if (useNewLHA && showPro) lhaUpPtr->listInit();
+
+  // Make sure we have properly switched to the desired beam.
+  if ( beamSetup.allowIDAswitch) {
+    int idASave = beamSetup.idA;
+    beamSetup.idA = 0;
+    setBeamIDs(idASave, beamSetup.idB );
+  }
+
   return true;
 
 }
@@ -1009,10 +1034,10 @@ bool Pythia::next(int procType) {
     cout << "\n Pythia::next(): " << nPrevious
          << " events have been generated " << endl;
 
-  // Set/reset info counters specific to each event. Also procType.
+  // Set/reset info counters specific to each event.
   infoPrivate.addCounter(3);
   for (int i = 10; i < 13; ++i) infoPrivate.setCounter(i);
-  if (!beamSetup.doVarEcm) procType = 0;
+  if (!beamSetup.doVarEcm || doHardProc) procType = 0;
 
   // Simpler option when no hard process, i.e. mainly hadron level.
   if (!doProcessLevel && !doNonPert) {
@@ -1077,8 +1102,9 @@ bool Pythia::next(int procType) {
     double pertRate = (beamSetup.eCM - eMinPertNow) / eWidthPert;
     if ( (doNonPert && !doSoftQCD)
       || ( beamSetup.doVarEcm && pertRate < 10
-        && (pertRate <= 0 || exp( -pertRate ) > rndm.flat())) ) {
-      bool nextNP = nextNonPert();
+        && (pertRate <= 0 || exp( -pertRate ) > rndm.flat()))
+      || procType > 6 ) {
+      bool nextNP = nextNonPert(procType);
 
       // Optionally check final event for problems.
       if (nextNP && checkEvent && !check()) {
@@ -1350,6 +1376,38 @@ bool Pythia::next(int procType) {
 
 //--------------------------------------------------------------------------
 
+// Generate a number of events.
+
+vector<long> Pythia::run(long nEvents,
+  function<void(Pythia* pythiaPtr)> callback) {
+
+  if (!isInit) {
+    logger.ABORT_MSG("not initialized");
+    return vector<long>();
+  }
+
+  // Check when to abort.
+  int nAbort = mode("Main:timesAllowErrors");
+  int iAbort = 0;
+
+  // Generate events.
+  int iEvent;
+  for (iEvent = 0; iEvent < nEvents; ++iEvent) {
+    if (!next()) {
+      if (info.atEndOfFile()) break;
+      else if (++iAbort > nAbort) break;
+      else continue;
+    }
+    callback(this);
+  }
+
+  // Return.
+  return vector<long>(1, iEvent);
+
+}
+
+//--------------------------------------------------------------------------
+
 // Switch to new beam particle identities.
 
 bool Pythia::setBeamIDs(int idAin, int idBin) {
@@ -1602,14 +1660,18 @@ bool Pythia::nextNonPert(int procType) {
   process.append( 90, -11, 0, 0, 0, 0, 0, 0,
     Vec4(0., 0., 0., beamSetup.eCM), beamSetup.eCM, 0. );
   process.append(beamSetup.idA, -12, 0, 0, 0, 0, 0, 0,
-    Vec4(0., 0., beamSetup.pzAcm, beamSetup.eA), beamSetup.mA, 0. );
+    Vec4(0., 0., beamSetup.pzAcm, beamSetup.eAcm), beamSetup.mA, 0. );
   process.append(beamSetup.idB, -12, 0, 0, 0, 0, 0, 0,
-    Vec4(0., 0., beamSetup.pzBcm, beamSetup.eB), beamSetup.mB, 0. );
+    Vec4(0., 0., beamSetup.pzBcm, beamSetup.eBcm), beamSetup.mB, 0. );
   for (int i = 0; i < 3; ++i) event.append( process[i] );
 
   // Pick process type if it has not already been set.
   if (procType == 0) procType = hadronLevel.pickLowEnergyProcess(
     beamSetup.idA, beamSetup.idB, beamSetup.eCM, beamSetup.mA, beamSetup.mB);
+  else if (procType == 9)
+    procType = sigmaLowEnergy.pickResonance(
+      beamSetup.idA, beamSetup.idB, beamSetup.eCM);
+
   int procCode = 150 + min( 9, abs(procType));
 
   if (procType == 0) {
@@ -1783,10 +1845,10 @@ void Pythia::banner() {
        << "                                      |  | \n"
        << " |  |   Javira Altmann, Christian Bierlich, N"
        << "aomi Cooke, Nishita Desai,            |  | \n"
-       << " |  |   Ilkka Helenius, Philip Ilten, Leif Lo"
-       << "nnblad, Stephen Mrenna,               |  | \n"
-       << " |  |   Christian Preuss, Torbjorn Sjostrand,"
-       << " and Peter Skands.                    |  | \n"
+       << " |  |   Ilkka Helenius, Philip Ilten, Joni La"
+       << "ulainen, Leif Lonnblad,               |  | \n"
+       << " |  |   Stephen Mrenna, Christian Preuss, Tor"
+       << "bjorn Sjostrand, and Peter Skands.    |  | \n"
        << " |  |                                        "
        << "                                      |  | \n"
        << " |  |   The complete list of authors, includi"
@@ -1819,7 +1881,7 @@ void Pythia::banner() {
        << " when interpreting results.           |  | \n"
        << " |  |                                        "
        << "                                      |  | \n"
-       << " |  |   Copyright (C) 2025 Torbjorn Sjostrand"
+       << " |  |   Copyright (C) 2026 Torbjorn Sjostrand"
        << "                                      |  | \n"
        << " |  |                                        "
        << "                                      |  | \n"
@@ -2005,6 +2067,11 @@ bool Pythia::check() {
   vector<int> noDau;
   vector< pair<int,int> > noMotDau;
   if (checkHistory) {
+    vector<int> mList, dList, dmList, mdList;
+    mList.reserve(8);
+    dList.reserve(8);
+    dmList.reserve(8);
+    mdList.reserve(8);
 
     // Loop through the event and check that there are beam particles.
     bool hasBeams = false;
@@ -2013,8 +2080,8 @@ bool Pythia::check() {
       if (abs(status) == 12) hasBeams = true;
 
       // Check that mother and daughter lists not empty where not expected to.
-      vector<int> mList = event[i].motherList();
-      vector<int> dList = event[i].daughterList();
+      event[i].motherList(mList);
+      event[i].daughterList(dList);
       if (mList.size() == 0 && abs(status) != 11 && abs(status) != 12)
         noMot.push_back(i);
       if (dList.size() == 0 && status < 0 && status != -11)
@@ -2024,7 +2091,7 @@ bool Pythia::check() {
       for (int j = 0; j < int(mList.size()); ++j) {
         if ( event[mList[j]].daughter1() <= i
           && event[mList[j]].daughter2() >= i ) continue;
-        vector<int> dmList = event[mList[j]].daughterList();
+        event[mList[j]].daughterList(dmList);
         bool foundMatch = false;
         for (int k = 0; k < int(dmList.size()); ++k)
         if (dmList[k] == i) {
@@ -2049,7 +2116,7 @@ bool Pythia::check() {
           && event[dList[j]].statusAbs() < 90
           && event[dList[j]].mother1() <= i
           && event[dList[j]].mother2() >= i) continue;
-        vector<int> mdList = event[dList[j]].motherList();
+        event[dList[j]].motherList(mdList);
         bool foundMatch = false;
         for (int k = 0; k < int(mdList.size()); ++k)
         if (mdList[k] == i) {

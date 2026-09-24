@@ -1,5 +1,5 @@
 // main245.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -194,14 +194,15 @@ int main() {
   int nEvent = 10000;
   int nAbort = 5;
 
-  // Comparative statistics.
+  // Comparative statistics, with CPU time in seconds.
+  Timer timer(Timer::CPU);
   double time[2];
   Hist nchRM("charged multiplicity RanMar", 100, -1., 399.);
   Hist nchMM("charged multiplicity MixMax", 100, -1., 399.);
 
   // Compare runtime (and results) for RanMar and MixMax random numbers.
   for (int iRNG = 0; iRNG < 2; ++iRNG) {
-    clock_t start = clock();
+    timer.start();
 
     // Pythia generator.
     Pythia pythia;
@@ -316,8 +317,8 @@ int main() {
          << vtxX << vtxY << vtxZ << vtxT << vtxZT;
 
     // Check time; end of loop over random number generators. Done.
-    clock_t stop = clock();
-    time[iRNG] = double(stop - start) / double(CLOCKS_PER_SEC);
+    timer.stop();
+    time[iRNG] = timer.elapsed() / 1000.;
   }
   cout << nchRM << nchMM;
   cout << "\n ========================================================="

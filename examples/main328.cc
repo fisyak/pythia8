@@ -1,5 +1,5 @@
 // main328.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -56,7 +56,7 @@ int main() {
     pythia.settings.mode("Beams:idA", idA);
     pythia.settings.mode("Beams:idB", idB);
     pythia.settings.mode("SigmaTotal:mode", modeSig);
-    pythia.settings.mode("SigmaDiffractive:mode", modeSig);
+    if (modeSig < 4) pythia.settings.mode("SigmaDiffractive:mode", modeSig);
 
     // Switch off most of event generation and initialize.
     pythia.readString("SoftQCD:elastic = on");

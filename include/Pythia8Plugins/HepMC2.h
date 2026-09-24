@@ -1,5 +1,5 @@
 // HepMC2.h is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -400,12 +400,14 @@ inline bool Pythia8ToHepMC::fill_next_event(Pythia8::Event& pyev,
 namespace Pythia8 {
 
 //==========================================================================
+
 // This a wrapper around HepMC::Pythia8ToHepMC in the Pythia8
 // namespace that simplify the most common use cases. It stores the
 // current GenEvent and output stream internally to avoid cluttering
 // of user code. This class is also defined in HepMC3.h with the same
 // signatures, and the user can therefore switch between HepMC version
 // 2 and 3, by simply changing the include file.
+
 class Pythia8ToHepMC : public HepMC::Pythia8ToHepMC {
 
 public:

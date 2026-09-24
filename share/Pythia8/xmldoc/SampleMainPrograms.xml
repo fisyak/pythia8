@@ -226,6 +226,10 @@ but obviously at the expense of losing some history information.</li>
 an example illustrating the generation of HepMC events using the 
 HDF5 LHA format (LHAHDF5).</li> 
  
+<li><code>main137.cc</code> (new) : 
+similar to <code>main131</code> but allows for filtering of the event 
+record.</li> 
+ 
 </ul> 
  
 <h3>Output to ROOT and/or Rivet</h3> 
@@ -473,7 +477,7 @@ and allows for OpenMP parallelization. More documentation can be
 obtained by executing <code>./main224 --help</code>. The input file 
 <code>main224.cmnd</code> further illustrates the use of DIRE.</li> 
  
-<li><code>main225.cc</code> : 
+<li><code>main225.cc</code> (new) : 
 demonstrates how to use the <code>RivetHooks</code> plugin and run 
 RIVET analyses, both with a single Pythia instance and 
 <code>PythiaParallel</code>.</li> 
@@ -511,6 +515,10 @@ can be input directly for hadronization, without being tied to the full
 process-generation machinery, e.g. to study the hadronization of 
 junction topologies. Can also be used for single-resonance decays, 
 with showers.</li> 
+ 
+<li><code>main235.cc</code> (new) : 
+provides an omnibus program, utilizing the plugin structure, to run 
+Pythia.</li> 
  
 </ul> 
  
@@ -599,9 +607,14 @@ The output compares multiplicity distributions from the default
 parameters to the reweighted output with the varied parameters 
 and the output using the varied parameters without reweighting.</li> 
  
-<li><code>main264.cc</code> (name) : 
-runs the same analysis as <code>main264.cc</code> but only for flavor 
-hadronization parameters and demonstrates post-hoc reweighting rathern 
+<li><code>main264.cc</code> (new) : 
+runs the same analysis as <code>main263.cc</code> but only for flavor 
+hadronization parameters and demonstrates post-hoc reweighting rather 
+than in-situ.</li> 
+ 
+<li><code>main265.cc</code> (new) : 
+runs the same analysis as <code>main263.cc</code> but only for kinematic 
+hadronization parameters and demonstrates post-hoc reweighting rather 
 than in-situ.</li> 
  
 </ul> 
@@ -669,6 +682,13 @@ generates batches of events via an interface with Awkward array.</li>
 <li><code>main298.py</code> (new) : 
 further examples on how to work with events via the Awkward array 
 interface.</li> 
+ 
+<li><code>main299.py</code> (new) : 
+equivalent of <code>main137</code> demonstrating the filtered HepMC 
+interface.</li> 
+ 
+<li><code>main300.py</code> (new) : 
+visualizes a Pythia event using the <code>Vistas</code> class.</li> 
  
 </ul> 
  
@@ -855,6 +875,16 @@ analysis.</li>
 in <ei>t-tbar</ei> production, from (by default) the most likely of the 
 alternatives constructed from the equations in <ref>Fad90</ref>.</li> 
  
+<li><code>main372.cc</code> (new) : study angular distributions in 
+<ei>t-tbar</ei> production and decay, specifically between two final leptons 
+in decay channels <ei>t &rarr; b W &rarr; b l nu</ei> (+corresponding for 
+<ei>tbar</ei>), with or without the <ei>t-tbar</ei>-correlated 
+decay matrix element.</li> 
+ 
+<li><code>main373.cc</code> (new) : study the <ei>t-tbar</ei> production 
+cross section at <ei>e^+e^-</ei> colliders as a function of the collider 
+energy, comparing the same set of alternatives as above.</li> 
+ 
 </ul> 
  
 <h3>Standard Model</h3> 
@@ -971,6 +1001,10 @@ extracting various cross sections and Glauber statistics from Angantyr.</li>
 <li><code>main427.cc</code> (new) : add a different impact parameter 
 sampler to Angantyr, to output events with unit weights.</li> 
  
+<li><code>main428.cc</code> (new) : closure tests for the built-in 
+nuclear geometry models, comparing sampled radial distributions with 
+analytic truth shapes and writing matplotlib plots.</li> 
+ 
 </ul> 
  
 <h3>Hadronization variations</h3> 
@@ -1071,15 +1105,10 @@ plot PDFs for a large number of hadrons.</li>
 test switching between hadron beams on an event-by-event basis. Compare 
 running times for different scenarios.</li> 
  
-<li><code>main483.cc</code> (was <code>main183.cc</code>) : 
-simple example of how Pythia can be used to simulate a basic hadronic 
-cascade in a few simple atmospheres, either as a sequence of hadron-hadron 
-collisions or making use of the Angantyr module.</li> 
- 
 <li><code>main484.cc</code> (was <code>main184.cc</code>) : 
-as <code>main483.cc</code>, but using the <code>PythiaCascade</code> class 
-to perform the separate collisions or decays, while the bookkeeping 
-of the cascade evolution remains in the main program.</li> 
+simple example of how <code>PythiaCascade</code> can be used to simulate 
+a basic hadronic cascade in a few simple atmospheres as a sequence of 
+hadron-hadron collisions.</li> 
  
 <li><code>main485.cc</code> (was <code>main185.cc</code>) : 
 an even simpler example of one collision or decay at a time, as performed 
@@ -1289,7 +1318,6 @@ Tables for the translation from the old C++ names to the new ones:
 <tr><td>main171</td><td>main509</td><td></td></tr> 
 <tr><td>main181</td><td>main481</td><td></td></tr> 
 <tr><td>main182</td><td>main482</td><td></td></tr> 
-<tr><td>main183</td><td>main483</td><td></td></tr> 
 <tr><td>main184</td><td>main484</td><td></td></tr> 
 <tr><td>main185</td><td>main485</td><td></td></tr> 
 <tr><td>main200</td><td>main401</td><td></td></tr> 
@@ -1320,4 +1348,4 @@ Table for the translation from the old Python names to the new ones:
  
 </chapter> 
  
-<!-- Copyright (C) 2025 Torbjorn Sjostrand --> 
+<!-- Copyright (C) 2026 Torbjorn Sjostrand --> 

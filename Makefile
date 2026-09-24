@@ -1,5 +1,5 @@
 # Makefile is a part of the PYTHIA event generator.
-# Copyright (C) 2025 Torbjorn Sjostrand.
+# Copyright (C) 2026 Torbjorn Sjostrand.
 # PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 # Please respect the MCnet Guidelines, see GUIDELINES for details.
 # Author: Philip Ilten, October 2014 - November 2017.
@@ -38,10 +38,23 @@ CXX_COMMON:=-I$(LOCAL_INCLUDE) $(CXX_COMMON)
 OBJ_COMMON:=-MD $(CXX_COMMON) $(OBJ_COMMON)
 LIB_COMMON=-pthread -Wl,-rpath,../lib:$(PREFIX_LIB) -ldl $(GZIP_LIB)
 
+# Determine the archiver and archiver flags.
+AR      ?= ar
+ARFLAGS ?= cr
+
 # PYTHIA.
 OBJECTS=$(patsubst $(LOCAL_SRC)/%.cc,$(LOCAL_TMP)/%.o,\
 	$(sort $(wildcard $(LOCAL_SRC)/*.cc)))
 TARGETS=$(LOCAL_LIB)/libpythia8.a $(LOCAL_LIB)/libpythia8$(LIB_SUFFIX)
+
+# Add plugin libraries without external dependencies.
+TARGETS+=$(LOCAL_LIB)/libpythia8amcatnloHooks.so
+TARGETS+=$(LOCAL_LIB)/libpythia8colourReconnectionHooks.so
+TARGETS+=$(LOCAL_LIB)/libpythia8jetMatchingHooks.so
+TARGETS+=$(LOCAL_LIB)/libpythia8lhefHooks.so
+TARGETS+=$(LOCAL_LIB)/libpythia8powhegHooks.so
+TARGETS+=$(LOCAL_LIB)/libpythia8resonanceDecayFilterHooks.so
+TARGETS+=$(LOCAL_LIB)/libpythia8setLHEDecayProductHooks.so
 
 # LHAPDF.
 ifeq ($(LHAPDF5_USE),true)
@@ -58,7 +71,6 @@ endif
 
 # POWHEG (needs directory that contains just POWHEG libraries).
 ifeq ($(POWHEG_USE),true)
-  TARGETS+=$(LOCAL_LIB)/libpythia8powhegHooks.so
   POWHEG_DIR=$(subst -L,,$(filter -L%,$(POWHEG_LIB)))/
   ifneq ($(POWHEG_DIR),.)
     TARGETS+=$(patsubst $(POWHEG_DIR)lib%.so,\
@@ -129,10 +141,29 @@ $(LOCAL_TMP)/Streams.o: $(LOCAL_SRC)/Streams.cc Makefile.inc
 $(LOCAL_TMP)/%.o: $(LOCAL_SRC)/%.cc
 	$(CXX) $< -o $@ -c $(OBJ_COMMON)
 $(LOCAL_LIB)/libpythia8.a: $(OBJECTS)
-	ar cr $@ $^
+	$(AR) $(ARFLAGS) $@ $^
 $(LOCAL_LIB)/libpythia8$(LIB_SUFFIX): $(OBJECTS)
 	$(CXX) $^ -o $@ $(CXX_COMMON) $(CXX_SHARED) $(CXX_SONAME)$(notdir $@)\
 	  $(LIB_COMMON) $(CXX_DTAGS)
+
+# Plugin libraries without dependencies.
+$(LOCAL_LIB)/libpythia8%Hooks.so:
+	$(CXX) -x c++ $< -o $@ $(CXX_SHARED) -w $(CXX_COMMON)\
+         $(CXX_SONAME)$(notdir $@) -Wl,-undefined,dynamic_lookup
+$(LOCAL_LIB)/libpythia8amcatnloHooks.so:\
+ $(LOCAL_INCLUDE)/Pythia8Plugins/aMCatNLOHooks.h
+$(LOCAL_LIB)/libpythia8colourReconnectionHooks.so:\
+ $(LOCAL_INCLUDE)/Pythia8Plugins/ColourReconnectionHooks.h
+$(LOCAL_LIB)/libpythia8jetMatchingHooks.so:\
+ $(LOCAL_INCLUDE)/Pythia8Plugins/JetMatchingHooks.h
+$(LOCAL_LIB)/libpythia8lhefHooks.so:\
+ $(LOCAL_INCLUDE)/Pythia8Plugins/LHEFHooks.h
+$(LOCAL_LIB)/libpythia8powhegHooks.so:\
+ $(LOCAL_INCLUDE)/Pythia8Plugins/PowhegHooks.h
+$(LOCAL_LIB)/libpythia8resonanceDecayFilterHooks.so:\
+ $(LOCAL_INCLUDE)/Pythia8Plugins/ResonanceDecayFilterHooks.h
+$(LOCAL_LIB)/libpythia8setLHEDecayProductHooks.so:\
+ $(LOCAL_INCLUDE)/Pythia8Plugins/SetLHEDecayProductHooks.h
 
 # LHAPDF (turn off all warnings for readability).
 $(LOCAL_TMP)/LHAPDF%Plugin.o: $(LOCAL_INCLUDE)/Pythia8Plugins/LHAPDF%.h
@@ -140,22 +171,16 @@ $(LOCAL_TMP)/LHAPDF%Plugin.o: $(LOCAL_INCLUDE)/Pythia8Plugins/LHAPDF%.h
 $(LOCAL_LIB)/libpythia8lhapdf%.so: $(LOCAL_TMP)/LHAPDF%Plugin.o\
 	$(LOCAL_LIB)/libpythia8$(LIB_SUFFIX)
 	$(CXX) $< -o $@ $(CXX_COMMON) $(CXX_SHARED) $(CXX_SONAME)$(notdir $@)\
-	 $(LHAPDF$*_LIB) -lLHAPDF -Llib -lpythia8
+	 $(LHAPDF$*_LIB) -Llib -lpythia8
 
 # POWHEG.
 $(LOCAL_TMP)/LHAPowheg.o: $(LOCAL_INCLUDE)/Pythia8Plugins/LHAPowheg.h
-	$(CXX) -x c++ $< -o $@ -c -MD -w $(CXX_COMMON)
-$(LOCAL_TMP)/PowhegHooks.o: $(LOCAL_INCLUDE)/Pythia8Plugins/PowhegHooks.h
 	$(CXX) -x c++ $< -o $@ -c -MD -w $(CXX_COMMON)
 $(LOCAL_LIB)/libpythia8powheg%.so: $(POWHEG_DIR)lib%.so\
 	$(LOCAL_TMP)/LHAPowheg.o $(LOCAL_LIB)/libpythia8$(LIB_SUFFIX)
 	$(CXX) $(LOCAL_TMP)/LHAPowheg.o -o $@ $(CXX_COMMON) $(CXX_SHARED)\
 	 $(CXX_SONAME)$(notdir $@) -Llib -lpythia8\
 	 -Wl,-rpath,../lib:$(POWHEG_DIR) -L$(POWHEG_DIR) -l$*
-$(LOCAL_LIB)/libpythia8powhegHooks.so: $(LOCAL_TMP)/PowhegHooks.o\
-	$(LOCAL_LIB)/libpythia8$(LIB_SUFFIX)
-	$(CXX) $< -o $@ $(CXX_COMMON) $(CXX_SHARED) $(CXX_SONAME)$(notdir $@)\
-	 -Llib -lpythia8
 
 # RIVET.
 $(LOCAL_LIB)/libpythia8rivet.so: $(LOCAL_INCLUDE)/Pythia8Plugins/RivetHooks.h

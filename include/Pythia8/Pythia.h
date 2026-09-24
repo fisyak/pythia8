@@ -1,5 +1,5 @@
 // Pythia.h is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -10,8 +10,8 @@
 #define Pythia8_Pythia_H
 
 // Version number defined for use in macros and for consistency checks.
-#define PYTHIA_VERSION 8.316
-#define PYTHIA_VERSION_INTEGER 8316
+#define PYTHIA_VERSION 8.318
+#define PYTHIA_VERSION_INTEGER 8318
 
 // Header files for the Pythia class and for what else the user may need.
 #include "Pythia8/Analysis.h"
@@ -276,6 +276,11 @@ public:
   inline bool next() { return next(0); }
   bool next(int procTypeIn);
 
+  // Generate a number of events.
+  vector<long> run(long nEvents, function<void(Pythia*)> callback);
+  vector<long> run(function<void(Pythia*)> callback) {
+    return run(settings.mode("Main:numberOfEvents"), callback); }
+
   // Switch to new beam particle identities; for similar hadrons only.
   bool setBeamIDs( int idAin, int idBin = 0);
 
@@ -301,8 +306,10 @@ public:
   bool forceHadronLevel( bool findJunctions = true);
 
   // Special routine to allow more decays if on/off switches changed.
-  bool moreDecays() {return hadronLevel.moreDecays(event);}
-  bool moreDecays(int index) {return hadronLevel.decay(index, event);}
+  bool moreDecays(bool allowPartons = false) {
+    return hadronLevel.moreDecays(event, allowPartons);}
+  bool moreDecays(int index, bool allowPartons = false) {
+    return hadronLevel.decay(index, event, allowPartons);}
 
   // Special routine to force R-hadron decay when not done before.
   bool forceRHadronDecays() {return doRHadronDecays();}
@@ -493,6 +500,7 @@ private:
   BeamSetup beamSetup = {};
 
   // LHAup object for generating external events.
+  bool     doHardProc = false;
   bool     doLHA = false;
   bool     useNewLHA = false;
   LHAupPtr lhaUpPtr = {};

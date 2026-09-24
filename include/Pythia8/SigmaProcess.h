@@ -1,5 +1,5 @@
 // SigmaProcess.h is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -10,6 +10,7 @@
 // Sigma2Process: base class for 2 -> 2 processes, derived from above.
 // Sigma3Process: base class for 2 -> 3 processes, derived from above.
 // SigmaLHAProcess: wrapper class for Les Houches Accord external input.
+// TopThreshold: auxiliary class for enhancement factors near threshold.
 // Actual physics processes are found in separate files:
 // SigmaQCD for QCD processes;
 // SigmaEW for electroweak processes (including photon production);
@@ -159,6 +160,9 @@ public:
   virtual bool final2KinMPI( int = 0, int = 0, Vec4 = 0., Vec4 = 0.,
     double = 0., double = 0.) {return true;}
 
+  // Evaluate inclusive NLO weight.
+  virtual double weightNLO() {return 1.;}
+
   // Evaluate weight for simultaneous flavours (only gamma*/Z0 gamma*/Z0).
   // Usage: weightDecayFlav( process).
   virtual double weightDecayFlav( Event&) {return 1.;}
@@ -200,6 +204,9 @@ public:
 
   // Special treatment needed if negative cross sections allowed.
   virtual bool   allowNegativeSigma() const {return false;}
+
+  // Whether this process has an inclusive NLO correction implemented.
+  virtual bool   hasNLO()          const {return false;}
 
   // Flavours in 2 -> 2/3 processes where masses needed from beginning.
   // (For a light quark masses will be used in the final kinematics,
@@ -628,6 +635,50 @@ public:
 
 private:
 
+};
+
+//==========================================================================
+
+// Auxiliary class for top threshold corrections, based on
+// V. Fadin,  V. Khoze and T. Sjostrand, Z. Phys. C48 (1990) 613.
+
+class TopThreshold {
+
+public:
+
+  // Initialization setup - read in necessary settings.
+  void setup( int topModelIn, double mtIn, double gammatIn,
+    double gammatGreenIn, double thrRegionIn, double singletFracIn,
+    int alphasOrder, double alphasValue, int nTermsIn, Info* infoPtrIn);
+
+  // Cross section enhancement factor, combined.
+  double multiplySigmaBy( double mHat, double m3, double m4);
+
+  // Imaginary part of Green's function for singlet state.
+  double imGreenSin(double eNow, double mtNow);
+
+  // Imaginary part of Green's function for octet state.
+  double imGreenOct(double eNow, double mtNow);
+
+  // Set up information to handle angular distributions in toponium decay.
+  double weightTopDecay( Event& process);
+
+  // Matrix element for decay angles in pseudoscalar toponium-like state.
+  double matrixElementP2bbveevmumu(const Event& work,
+    int ib, int ibb, int ive, int ie, int ivm, int im);
+
+private:
+
+  // Commonly available variables.
+  int    topModel{0}, nTerms{20}, nTermsNow{20};
+  double mt{0}, gammat{0}, gammatGreen{0}, gammatSum{0}, thrRegion{0},
+    singletFrac{0}, alps{0};
+
+  // Need alphaStrong with special scale.
+  AlphaStrong alphas{};
+
+  // Access to Info.
+  Info* infoPtr{};
 };
 
 //==========================================================================

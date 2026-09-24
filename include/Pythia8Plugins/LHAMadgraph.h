@@ -1,5 +1,5 @@
 // LHAMadgraph.h is a part of the PYTHIA event generator.
-// Copyright (C) 2025 Torbjorn Sjostrand.
+// Copyright (C) 2026 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
@@ -9,7 +9,7 @@
 #define Pythia8_LHAMadgraph_H
 
 #include "Pythia8/Pythia.h"
-#include "Pythia8Plugins/JetMatching.h"
+#include "Pythia8Plugins/JetMatchingHooks.h"
 #include "Pythia8Plugins/GeneratorInput.h"
 #include <unistd.h>
 #include <sys/stat.h>
